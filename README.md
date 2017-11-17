@@ -74,7 +74,7 @@ CMakeLists.txt will build it on my Mac; I don’t guarantee (or even expect) it 
 
 **sensitivity.second_vertex_z** : If there are two tracks, vertex z position of an arbitrary “2nd” track. The z direction is vertical, parallel to the wires, you can see it in side view. Unit is mm.
 
-**sensitivity.vertex_separation ** : Distance between the inner-most (nearest to the foil) vertices of the two tracks (only if there are 2 electron candidates).  Unit is mm.
+**sensitivity.vertex_separation** : Distance between the inner-most (nearest to the foil) vertices of the two tracks (only if there are 2 electron candidates).  Unit is mm.
 
 **sensitivity.first_projected_vertex_y; sensitivity.first_projected_vertex_z; sensitivity.second_projected_vertex_y; sensitivity.second_projected_vertex_z** : Only for 2-electron or 1e-n-gamma topologies. If both tracks were linearly projected back to the foil (x=0), these would be their y and z coordinates.  Unit is mm.
 
