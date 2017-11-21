@@ -55,6 +55,10 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("sensitivity.true_highest_primary_energy",&sensitivity_.true_highest_primary_energy_);
   tree_->Branch("sensitivity.true_second_primary_energy",&sensitivity_.true_second_primary_energy_);
   tree_->Branch("sensitivity.true_total_energy",&sensitivity_.true_total_energy_);
+  tree_->Branch("sensitivity.true_vertex_x",&sensitivity_.true_vertex_x_);
+  tree_->Branch("sensitivity.true_vertex_y",&sensitivity_.true_vertex_y_);
+  tree_->Branch("sensitivity.true_vertex_z",&sensitivity_.true_vertex_z_);
+
 
   tree_->Branch("sensitivity.first_vertex_x",&sensitivity_.first_vertex_x_);
   tree_->Branch("sensitivity.first_vertex_y",&sensitivity_.first_vertex_y_);
@@ -130,6 +134,7 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
 dpp::base_module::process_status
 SensitivityModule::process(datatools::things& workItem) {
 
+  // internal variables to mimic the ntuple variables, names are same but in camel case
   bool passesTwoCalorimeters=false;
   bool passesTwoPlusCalos=false;
   bool passesTwoClusters=false;
@@ -160,6 +165,9 @@ SensitivityModule::process(datatools::things& workItem) {
   double higherTrueEnergy=0;
   double lowerTrueEnergy=0;
   double totalTrueEnergy=0;
+  double  trueVertexX=-9999;
+  double  trueVertexY=-9999;
+  double  trueVertexZ=-9999;
   double clusterCount=0;
   int trackCount=0;
   int alphaCount=0;
@@ -170,6 +178,7 @@ SensitivityModule::process(datatools::things& workItem) {
   double caloHitCount=0;
   double highestGammaEnergy=0;
   double edgemostVertex=0;
+  
 
   std::vector<snemo::datamodel::particle_track> gammaCandidates;
   std::vector<snemo::datamodel::particle_track> electronCandidates;
@@ -195,6 +204,7 @@ SensitivityModule::process(datatools::things& workItem) {
   TVector3 vertexPosition[2];
   for (int i=0;i<2;i++)
     vertexPosition[i].SetXYZ(-9999,-9999,-9999);
+  
   // Define another vertex position for alphas etc
   TVector3 vertexPositionAlpha[1];
   for (int i=0;i<1;i++)
@@ -210,8 +220,7 @@ SensitivityModule::process(datatools::things& workItem) {
     projectedVertexPositionAlpha[i].SetXYZ(0,-9999,-9999);
   TVector3 projectedVertexPositionElectron[1];
   for (int i=0;i<1;i++)
-    projectedVertexPositionElectron[i].SetXYZ(0,-9999,-9999);
-  TVector3 trackDirection[2];
+    projectedVertexPositionElectron[i].SetXYZ(0,-9999,-9999);  TVector3 trackDirection[2];
   double angleBetweenTracks;
   bool sameSideOfFoil=false;
   double projectionDistanceXY=0;
@@ -819,15 +828,20 @@ SensitivityModule::process(datatools::things& workItem) {
     return dpp::base_module::PROCESS_INVALID;
   } //end catch
 
-  // From SD bank:
-  // Get (true) energy of more energetic electron
-  // Get (true) energy of less energetic electron
+  // From SD bank (simulated data - i.e. generator level):
+  // Get (true) energy of two most energetic particles
+  // Get (true) primary vertex position
+  
   try
     {
       const mctools::simulated_data& simData = workItem.get<mctools::simulated_data>("SD");
       if (simData.has_data())
       {
+        trueVertexX = simData.get_vertex().x();
+        trueVertexY = simData.get_vertex().y();
+        trueVertexZ= simData.get_vertex().z();
         mctools::simulated_data::primary_event_type primaryEvent=simData.get_primary_event ();
+
         for (int i=0;i<primaryEvent.get_number_of_particles();i++)// should be 2 particles for 0nubb
         {
           genbb::primary_particle trueParticle= primaryEvent.get_particle(i);
@@ -890,6 +904,9 @@ SensitivityModule::process(datatools::things& workItem) {
   sensitivity_.true_total_energy_= totalTrueEnergy;
   sensitivity_.true_lower_electron_energy_=lowerTrueEnergy;
   sensitivity_.true_higher_electron_energy_=higherTrueEnergy;
+  sensitivity_.true_vertex_x_=trueVertexX;
+  sensitivity_.true_vertex_y_=trueVertexY;
+  sensitivity_.true_vertex_z_=trueVertexZ;
 
   // "First" track is the higher energy one
   //uint highEnergyIndex =(calorimeterEnergy[0]>calorimeterEnergy[1] ? 0:1);
