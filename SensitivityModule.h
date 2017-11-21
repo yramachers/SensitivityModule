@@ -22,6 +22,7 @@
 #include "bayeux/geomtools/geometry_service.h"
 #include "bayeux/geomtools/line_3d.h"
 #include "bayeux/geomtools/helix_3d.h"
+#include "bayeux/geomtools/geomtools.h"
 
 // - Falaise
 #include "falaise/snemo/datamodels/calibrated_data.h"
@@ -48,10 +49,13 @@ typedef struct SensitivityEventStorage{
   std::vector<double> gamma_energies_;
   std::vector<double>* traj_cluster_delayed_time_;
 
-  // Truth info - particle energies in MeV
+  // Truth info - particle energies in MeV and primary vertex position
   double true_highest_primary_energy_;
   double true_second_primary_energy_;
   double true_total_energy_;
+  double true_vertex_x_;
+  double true_vertex_y_;
+  double true_vertex_z_;
 
   // Get vertex position of up to two tracks in mm
   double first_vertex_x_; // Foil is at x ~ 0, main calo walls are at +/- 434.994 mm according to flvisualize
