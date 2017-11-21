@@ -62,6 +62,12 @@ CMakeLists.txt will build it on my Mac; I don’t guarantee (or even expect) it 
    
 **sensitivity.true_total_energy** : Summed energy of every primary particle in the interaction (from SD bank)
 
+**sensitivity.true_vertex_x** : X coordinate of the true event vertex (generator level, from SD bank). Foil is at x ~ 0, main calo walls are at +/- 434.994 mm according to flvisualize. Unit is mm.
+
+**sensitivity.true_vertex_y** : Y coordinate of the true event vertex (generator level, from SD bank).  The y direction is horizontal, parallel to the foil, you can see it in top view. Unit is mm.
+
+**sensitivity.true_vertex_z** : Z coordinate of the true event vertex (generator level, from SD bank).  The z direction is vertical, parallel to the wires, you can see it in side view. Unit is mm. 
+
 **sensitivity.first_vertex_x** : If there are two tracks, vertex x position of an arbitrary “first” track. Foil is at x ~ 0, main calo walls are at +/- 434.994 mm according to flvisualize. Unit is mm.
 
 **sensitivity.first_vertex_y** : If there are two tracks, vertex y position of an arbitrary “first” track. The y direction is horizontal, parallel to the foil, you can see it in top view. Unit is mm.
