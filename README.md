@@ -11,11 +11,11 @@ SensitivityModule  is a Falaise pipeline module to process selected data from th
 
 SensitivityModule.cpp
 
-SensitivityModule.conf
+SensitivityModule_template.conf
 
 SensitivityModule.h
 
-CMakeLists.txt
+CMakeLists_template.txt
 
 
 ## Description
@@ -24,6 +24,9 @@ Add to an flreconstruct pipeline to generate a ROOT ntuple file with some pertin
 
 CMakeLists.txt will build it on my Mac; I don’t guarantee (or even expect) it will work everywhere. In fact I know it doesn’t, but you can use it as a starting point. You'll have to at the very least change the paths.
 
+CMakeLists_template.txt and SensitivityModule_template.conf are template files with hardcoded paths on Cheryl's computer. Copy them, remove underscore and template from the names and edit them to point at your own paths.
+
+Use the falaise flreconstruct pipeline instructions to see how to build and integrate this module to your pipeline.
 
 ## Output tuple structure
 
