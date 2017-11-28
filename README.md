@@ -43,7 +43,7 @@ Use the falaise flreconstruct pipeline instructions to see how to build and inte
 
 **sensitivity.passes_associated_calorimeters** : True if there are exactly two tracks, and they are both associated to one or more calorimeter hits. Equivalent (at the moment to a 2-electron topology)
 
-**sensitivity.number_of_electrons** : Number of electron-candidate tracks - that is, tracks that are associated to one or more calorimeter hits. No check on the charge as of yet. No requirement for a foil vertex. (PTD bank)
+**sensitivity.number_of_electrons** : Number of electron-candidate tracks - that is, tracks that are associated to one or more calorimeter hits. No check on the charge as of yet (but you can do it yourself looking at electron_charges). No requirement for a foil vertex. (PTD bank)
 
 **sensitivity.number_of_gammas** : Number of gamma candidates - when calorimeter hits that aren’t associated to tracks have been grouped by the gamma tracko-clustering algorithm to correspond to what appear to be individual gammas (PTD bank)
 
@@ -52,6 +52,8 @@ Use the falaise flreconstruct pipeline instructions to see how to build and inte
 **sensitivity.lower_electron_energy** : Energy of the second-highest-energy electron candidate, summed over all associated calorimeter hits (at the moment I don’t think more than 1 hit is allowed, but that could change in future). 0 if less than 2 electron candidates. Corresponds to sensitivity.electron_energies[1].
 
 **sensitivity.electron_energies** : Vector of all electron-candidate energies. In descending order of energy.
+
+**sensitivity.electron_charges** : Vector of all electron-candidate charges. In descending order of energy. 1 = undefined (straight track), 4 = positive, 8 = negative.
 
 **sensitivity.gamma_energies** : Vector of all electron-candidate energies. In descending order of energy.
                                
