@@ -46,6 +46,7 @@ typedef struct SensitivityEventStorage{
   double true_higher_electron_energy_;
 
   std::vector<double> electron_energies_;
+  std::vector<int> electron_charges_;
   std::vector<double> gamma_energies_;
   std::vector<double>* traj_cluster_delayed_time_;
 

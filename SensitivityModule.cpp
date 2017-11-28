@@ -48,6 +48,7 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("sensitivity.higher_electron_energy",&sensitivity_.higher_electron_energy_);
   tree_->Branch("sensitivity.lower_electron_energy",&sensitivity_.lower_electron_energy_);
   tree_->Branch("sensitivity.electron_energies",&sensitivity_.electron_energies_);
+  tree_->Branch("sensitivity.electron_charges",&sensitivity_.electron_charges_);
   tree_->Branch("sensitivity.gamma_energies",&sensitivity_.gamma_energies_);
 
   tree_->Branch("sensitivity.true_higher_electron_energy",&sensitivity_.true_higher_electron_energy_);
@@ -186,6 +187,7 @@ SensitivityModule::process(datatools::things& workItem) {
 
   std::vector<double> gammaEnergies;
   std::vector<double> electronEnergies;
+  std::vector<int> electronCharges;
 
   std::vector<int> electronCaloType; // will be translated to the vectors for each type at the end
   std::vector<int> gammaCaloType; // will be translated to the vectors for each type at the end
@@ -449,6 +451,8 @@ SensitivityModule::process(datatools::things& workItem) {
           
           // Now add the type of the first hit to a vector
           InsertAt(firstHitType, electronCaloType, pos);
+          // And the track charge: 1=undefined, 4=positive, 8=negative
+          InsertAt((int)track.get_charge(),electronCharges,pos);
         }
         if (track.has_trajectory())
         {
@@ -891,6 +895,7 @@ SensitivityModule::process(datatools::things& workItem) {
   sensitivity_.number_of_electrons_=electronCandidates.size();
   sensitivity_.electron_energies_=electronEnergies;
   sensitivity_.gamma_energies_=gammaEnergies;
+  sensitivity_.electron_charges_=electronCharges;
 
 
   // Reconstructed energies
