@@ -55,6 +55,8 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("sensitivity.true_lower_electron_energy",&sensitivity_.true_lower_electron_energy_);
   tree_->Branch("sensitivity.true_highest_primary_energy",&sensitivity_.true_highest_primary_energy_);
   tree_->Branch("sensitivity.true_second_primary_energy",&sensitivity_.true_second_primary_energy_);
+  tree_->Branch("sensitivity.true_higher_particle_type",&sensitivity_.true_higher_particle_type_);
+  tree_->Branch("sensitivity.true_lower_particle_type",&sensitivity_.true_lower_particle_type_);
   tree_->Branch("sensitivity.true_total_energy",&sensitivity_.true_total_energy_);
   tree_->Branch("sensitivity.true_vertex_x",&sensitivity_.true_vertex_x_);
   tree_->Branch("sensitivity.true_vertex_y",&sensitivity_.true_vertex_y_);
@@ -68,7 +70,8 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("sensitivity.second_vertex_y",&sensitivity_.second_vertex_y_);
   tree_->Branch("sensitivity.second_vertex_z",&sensitivity_.second_vertex_z_);
   tree_->Branch("sensitivity.first_proj_vertex_y",&sensitivity_.first_proj_vertex_y_);
-  tree_->Branch("sensitivity.first_proj_vertex_z",&sensitivity_.first_proj_vertex_z_);  tree_->Branch("sensitivity.second_proj_vertex_y",&sensitivity_.second_proj_vertex_y_);
+  tree_->Branch("sensitivity.first_proj_vertex_z",&sensitivity_.first_proj_vertex_z_);
+  tree_->Branch("sensitivity.second_proj_vertex_y",&sensitivity_.second_proj_vertex_y_);
   tree_->Branch("sensitivity.second_proj_vertex_z",&sensitivity_.second_proj_vertex_z_);
   tree_->Branch("sensitivity.vertex_separation",&sensitivity_.vertex_separation_);
   tree_->Branch("sensitivity.foil_projection_separation",&sensitivity_.foil_projection_separation_);
@@ -105,7 +108,10 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("sensitivity.track_count",&sensitivity_.track_count_);
   tree_->Branch("sensitivity.associated_track_count",&sensitivity_.associated_track_count_);
   tree_->Branch("sensitivity.alpha_count",&sensitivity_.alpha_count_);
+  tree_->Branch("sensitivity.delayed_cluster_hit_count",&sensitivity_.delayed_cluster_hit_count_);
   tree_->Branch("sensitivity.foil_alpha_count",&sensitivity_.foil_alpha_count_);
+  tree_->Branch("sensitivity.alpha_track_length",&sensitivity_.alpha_track_length_);
+  tree_->Branch("sensitivity.proj_track_length_alpha",&sensitivity_.proj_track_length_alpha_);
   tree_->Branch("sensitivity.latest_delayed_hit",&sensitivity_.latest_delayed_hit_);
   tree_->Branch("sensitivity.small_cluster_count",&sensitivity_.small_cluster_count_);
   tree_->Branch("sensitivity.third_calo_energy",&sensitivity_.highest_gamma_energy_);// Highest energy gamma (dupe of highest_gamma_energy for legacy)
@@ -122,8 +128,8 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("sensitivity.gamma_fractions_mainwall",&sensitivity_.gamma_fractions_mainwall_);
   tree_->Branch("sensitivity.gamma_fractions_xwall",&sensitivity_.gamma_fractions_xwall_);
   tree_->Branch("sensitivity.gamma_fractions_gveto",&sensitivity_.gamma_fractions_gveto_);
-  
-  
+
+
   truthtree_ = new TTree("Truth","Truth");
   truthtree_->SetDirectory(hfile_);
   truthtree_->Branch("truth.lower_electron_energy",&truth_.lower_electron_energy_);
@@ -166,6 +172,8 @@ SensitivityModule::process(datatools::things& workItem) {
   double higherTrueEnergy=0;
   double lowerTrueEnergy=0;
   double totalTrueEnergy=0;
+  int higherTrueType=0;
+  int lowerTrueType=0;
   double  trueVertexX=-9999;
   double  trueVertexY=-9999;
   double  trueVertexZ=-9999;
@@ -175,11 +183,14 @@ SensitivityModule::process(datatools::things& workItem) {
   int foilAlphaCount=0;
   int associatedTrackCount=0;
   double smallClusterCount=0;
+  double delayedClusterHitCount=0;
+  double trackLengthAlpha=0;
+  double projectedTrackLengthAlpha=0;
   double maxAlphaTime=-1;
   double caloHitCount=0;
   double highestGammaEnergy=0;
   double edgemostVertex=0;
-  
+  double distanceBetweenFoilGeigerCell=30.838;
 
   std::vector<snemo::datamodel::particle_track> gammaCandidates;
   std::vector<snemo::datamodel::particle_track> electronCandidates;
@@ -191,7 +202,7 @@ SensitivityModule::process(datatools::things& workItem) {
 
   std::vector<int> electronCaloType; // will be translated to the vectors for each type at the end
   std::vector<int> gammaCaloType; // will be translated to the vectors for each type at the end
-  
+
   // To calculate the fraction of the energy from each particle that is deposited in each of the calorimeter walls
   std::vector<double>electronMainwallFraction;
   std::vector<double>electronXwallFraction;
@@ -199,14 +210,14 @@ SensitivityModule::process(datatools::things& workItem) {
   std::vector<double>gammaMainwallFraction;
   std::vector<double>gammaXwallFraction;
   std::vector<double>gammaVetoFraction;
-  
-  std::vector<double> traj_cl_delayed_time;
+
+  std::vector<double> trajClDelayedTime;
 
   // Set to a value outside the detector
   TVector3 vertexPosition[2];
   for (int i=0;i<2;i++)
     vertexPosition[i].SetXYZ(-9999,-9999,-9999);
-  
+
   // Define another vertex position for alphas etc
   TVector3 vertexPositionAlpha[1];
   for (int i=0;i<1;i++)
@@ -222,9 +233,15 @@ SensitivityModule::process(datatools::things& workItem) {
     projectedVertexPositionAlpha[i].SetXYZ(0,-9999,-9999);
   TVector3 projectedVertexPositionElectron[1];
   for (int i=0;i<1;i++)
-    projectedVertexPositionElectron[i].SetXYZ(0,-9999,-9999);  TVector3 trackDirection[2];
+    projectedVertexPositionElectron[i].SetXYZ(0,-9999,-9999);
+  TVector3 vertexPositionDelayedHit[2];
+  for (int i=0;i<1;i++)
+    vertexPositionDelayedHit[i].SetXYZ(-9999,-9999,-9999);
+  TVector3 trackDirection[2];
   double angleBetweenTracks;
   bool sameSideOfFoil=false;
+  bool alphaCrossesFoil=false;
+  bool edgemostJoinedElectron=false;
   double projectionDistanceXY=0;
 
   uint highEnergyIndex = 0;
@@ -354,17 +371,17 @@ SensitivityModule::process(datatools::things& workItem) {
                 firstHitType=hitType;
               }
             }
-            
+
             // Order the energies etc
             int pos=InsertAndGetPosition(thisEnergy, gammaEnergies, true); // Add energy to ordered list of gamma energies (highest first) and get where in the list it was added
-            
+
             // Now add the type of the first hit to a vector
             InsertAt(firstHitType, gammaCaloType, pos);
             // And the fraction of the energy deposited in each wall
             InsertAt(thisMainWallEnergy/thisEnergy, gammaMainwallFraction,pos);
             InsertAt(thisXwallEnergy/thisEnergy, gammaXwallFraction,pos);
             InsertAt(thisVetoEnergy/thisEnergy, gammaVetoFraction,pos);
-            
+
             continue;
           }
           case snemo::datamodel::particle_track::POSITIVE:
@@ -438,7 +455,7 @@ SensitivityModule::process(datatools::things& workItem) {
             else if (hitType==gammaVetoHitType)
               thisVetoEnergy+= thisHitEnergy;
             else cout<<"WARNING: Unknown calorimeter type "<<hitType<<endl;
-            
+
             // Get the coordinates of the hit with the earliest time
             if (firstHitTime==-1 || calo_hit.get_time()<firstHitTime)
             {
@@ -448,7 +465,7 @@ SensitivityModule::process(datatools::things& workItem) {
             }
           }
           int pos=InsertAndGetPosition(thisEnergy, electronEnergies, true); // Add energy to ordered list of gamma energies (highest first) and get where in the list it was added
-          
+
           // Now add the type of the first hit to a vector
           InsertAt(firstHitType, electronCaloType, pos);
           // And the track charge: 1=undefined, 4=positive, 8=negative
@@ -463,7 +480,8 @@ SensitivityModule::process(datatools::things& workItem) {
           if (track.get_charge()==snemo::datamodel::particle_track::UNDEFINED && !track.has_associated_calorimeter_hits() && the_cluster.is_delayed()>0) // ###### add check for delayed hit
           {
             alphaCandidates.push_back(track);
-            traj_cl_delayed_time.push_back(the_cluster.get_hit(0).get_delayed_time());
+            trajClDelayedTime.push_back(the_cluster.get_hit(0).get_delayed_time());
+            delayedClusterHitCount = the_cluster.get_number_of_hits();
           }
         }
 
@@ -500,6 +518,7 @@ SensitivityModule::process(datatools::things& workItem) {
             geomtools::vector_3d one_end=the_shape.get_first();
             geomtools::vector_3d the_other_end=the_shape.get_last();
             // which is which?
+            geomtools::vector_3d foilmost_end = ((TMath::Abs(one_end.x()) < TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
             geomtools::vector_3d outermost_end = ((TMath::Abs(one_end.x()) >= TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
             geomtools::vector_3d direction = the_shape.get_direction_on_curve(the_shape.get_first()); // Only the first stores the direction for a line track
             int multiplier = (direction.x() * outermost_end.x() > 0)? 1: -1; // If the direction points the wrong way, reverse it
@@ -543,6 +562,20 @@ SensitivityModule::process(datatools::things& workItem) {
         snemo::datamodel::particle_track track=alphaCandidates.at(iParticle);
         if (track.has_trajectory())
         {
+          trackLengthAlpha=track.get_trajectory().get_pattern().get_shape().get_length();
+          const snemo::datamodel::tracker_trajectory & the_trajectory = track.get_trajectory();
+          const snemo::datamodel::tracker_cluster & the_cluster = the_trajectory.get_cluster();
+          //want to store the vector position of the delayed hit
+          if(the_cluster.is_delayed()>0)
+          {
+            int noHits = the_cluster.get_number_of_hits();
+            for (int hitNumber=0; hitNumber < noHits; hitNumber++)
+            {
+              const snemo::datamodel::calibrated_tracker_hit &a_delayed_gg_hit = the_cluster.get_hit(hitNumber);
+              geomtools::vector_3d delayedHitPosition(a_delayed_gg_hit.get_x(), a_delayed_gg_hit.get_y(), a_delayed_gg_hit.get_z());
+              vertexPositionDelayedHit[hitNumber].SetXYZ(delayedHitPosition.x(), delayedHitPosition.y(), delayedHitPosition.z());
+            }
+          }
           const snemo::datamodel::base_trajectory_pattern & the_base_pattern = track.get_trajectory().get_pattern();
           if (the_base_pattern.get_pattern_id()=="line") {
             const geomtools::line_3d & the_shape = (const geomtools::line_3d&)the_base_pattern.get_shape();
@@ -550,10 +583,18 @@ SensitivityModule::process(datatools::things& workItem) {
             geomtools::vector_3d one_end=the_shape.get_first();
             geomtools::vector_3d the_other_end=the_shape.get_last();
             // which is which?
+            geomtools::vector_3d foilmost_end = ((TMath::Abs(one_end.x()) < TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
             geomtools::vector_3d outermost_end = ((TMath::Abs(one_end.x()) >= TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
             geomtools::vector_3d direction = the_shape.get_direction_on_curve(the_shape.get_first()); // Only the first stores the direction for a line track
             int multiplier = (direction.x() * outermost_end.x() > 0)? 1: -1; // If the direction points the wrong way, reverse it
             trackDirection[iParticle].SetXYZ(direction.x() * multiplier, direction.y() * multiplier, direction.z() * multiplier);
+            // Check to see if the alpha crosses the foil
+            if(foilmost_end.x() * outermost_end.x() < 0 && TMath::Abs(foilmost_end.x()) > distanceBetweenFoilGeigerCell){
+                alphaCrossesFoil=true;
+              }
+            else{
+              alphaCrossesFoil=false;
+              }
             } //end line track
             else {
               const geomtools::helix_3d & the_shape = (const geomtools::helix_3d&)the_base_pattern.get_shape();
@@ -568,6 +609,12 @@ SensitivityModule::process(datatools::things& workItem) {
               int multiplier = (direction.x() * outermost_end.x() > 0)? 1: -1; // If the direction points the wrong way, reverse it
 
               trackDirection[iParticle].SetXYZ(direction.x() * multiplier, direction.y() * multiplier, direction.z() * multiplier);
+              if(foilmost_end.x() * outermost_end.x() < 0 && TMath::Abs(foilmost_end.x()) > distanceBetweenFoilGeigerCell){
+                alphaCrossesFoil=true;
+                }
+              else{
+                alphaCrossesFoil=false;
+                }
             }// end helix track
           }//end if has trajectory
         if (track.has_vertices()) // There doesn't seem to be any time ordering to the vertices
@@ -583,8 +630,38 @@ SensitivityModule::process(datatools::things& workItem) {
             }
           }
         }
+        //find the track length when projecting back to the foil at x=0
         double scale=vertexPositionAlpha[iParticle].X()/trackDirection[iParticle].X();
-        projectedVertexPositionAlpha[iParticle]=vertexPositionAlpha[iParticle] - scale*trackDirection[iParticle]; // The second term is the extension to the track to project it back with a straight line
+        // The second term is the extension to the track to project it back with a straight line
+        projectedVertexPositionAlpha[iParticle]=vertexPositionAlpha[iParticle] - scale*trackDirection[iParticle];
+
+        //find the track length when projecting back to foil most electron vertex
+        double vertexSeparation=(vertexPositionElectron[0] - vertexPositionAlpha[0]).Mag();
+
+        // Here we want to examine the number of hits in the alpha, then find different alpha lengths for each category
+        if(delayedClusterHitCount == 1){
+          //Alpha length will be the distance to the prompt track
+          //projected length will be distance to foil projected electron from delayed hit vertex
+          projectedTrackLengthAlpha = (projectedVertexPositionElectron[0] - vertexPositionDelayedHit[0]).Mag();
+        }
+        else if(delayedClusterHitCount == 2){
+          //track length here is from the middle of the furthest delayed hit back to the prompt track
+          //projected alpha should be to the one with the larger magnitude x coord back to projected electron vertex
+          if(TMath::Abs(vertexPositionDelayedHit[0].X()) >= TMath::Abs(vertexPositionDelayedHit[1].X())){
+            projectedTrackLengthAlpha = (projectedVertexPositionElectron[0] - vertexPositionDelayedHit[0]).Mag();
+          }
+          else{
+            projectedTrackLengthAlpha = (projectedVertexPositionElectron[0] - vertexPositionDelayedHit[1]).Mag();
+          }
+        }
+        else if(delayedClusterHitCount > 2){
+          //track length is geniune alpha trackLength - back to foil or wire
+          //want the vertex separation between projected tracks to the foil, use track direction
+          //want the lenth to project back to the foil, if vertex is not on the foil
+          double alphaTrackExtension = (vertexPositionAlpha[0] - projectedVertexPositionAlpha[0]).Mag();
+          double totalDistance = alphaTrackExtension + trackLengthAlpha;
+          projectedTrackLengthAlpha = (alphaCrossesFoil) ? alphaTrackExtension:totalDistance;
+        }
       }
     }
 
@@ -835,7 +912,7 @@ SensitivityModule::process(datatools::things& workItem) {
   // From SD bank (simulated data - i.e. generator level):
   // Get (true) energy of two most energetic particles
   // Get (true) primary vertex position
-  
+
   try
     {
       const mctools::simulated_data& simData = workItem.get<mctools::simulated_data>("SD");
@@ -850,16 +927,19 @@ SensitivityModule::process(datatools::things& workItem) {
         {
           genbb::primary_particle trueParticle= primaryEvent.get_particle(i);
           double energy=trueParticle.get_kinetic_energy();
+          double type=trueParticle.get_type();
           totalTrueEnergy += energy;
           // Populate the two highest true energies
           if (energy > higherTrueEnergy)
           {
             lowerTrueEnergy=higherTrueEnergy;
             higherTrueEnergy=energy;
+            higherTrueType=type;
           }
           else if (energy > lowerTrueEnergy)
           {
             lowerTrueEnergy=energy;
+            lowerTrueType=type;
           }
         }
       }
@@ -909,6 +989,8 @@ SensitivityModule::process(datatools::things& workItem) {
   sensitivity_.true_total_energy_= totalTrueEnergy;
   sensitivity_.true_lower_electron_energy_=lowerTrueEnergy;
   sensitivity_.true_higher_electron_energy_=higherTrueEnergy;
+  sensitivity_.true_higher_particle_type_=higherTrueType;
+  sensitivity_.true_lower_particle_type_=lowerTrueType;
   sensitivity_.true_vertex_x_=trueVertexX;
   sensitivity_.true_vertex_y_=trueVertexY;
   sensitivity_.true_vertex_z_=trueVertexZ;
@@ -937,8 +1019,16 @@ SensitivityModule::process(datatools::things& workItem) {
   // Vertex for other topologies
   if(is1e1alpha)
   {
+    sensitivity_.alpha_track_length_=trackLengthAlpha;
+    sensitivity_.proj_track_length_alpha_=projectedTrackLengthAlpha;
     sensitivity_.vertex_separation_= (vertexPositionElectron[0] - vertexPositionAlpha[0]).Mag();
     sensitivity_.foil_projection_separation_= (projectedVertexPositionElectron[0] - projectedVertexPositionAlpha[0]).Mag();
+    //First projected vertex is the electron
+    sensitivity_.first_proj_vertex_y_=projectedVertexPositionElectron[0].Y();
+    sensitivity_.first_proj_vertex_z_=projectedVertexPositionElectron[0].Z();
+    //First projected vertex is the alpha
+    sensitivity_.second_proj_vertex_y_=projectedVertexPositionAlpha[0].Y();
+    sensitivity_.second_proj_vertex_z_=projectedVertexPositionAlpha[0].Z();
     // First vertex is the electron
     sensitivity_.first_vertex_x_= vertexPositionElectron[0].X();
     sensitivity_.first_vertex_y_= vertexPositionElectron[0].Y();
@@ -960,7 +1050,7 @@ SensitivityModule::process(datatools::things& workItem) {
 
   // Timing
   sensitivity_.time_delay_=TMath::Abs(timeDelay);
-  sensitivity_.traj_cluster_delayed_time_= &traj_cl_delayed_time;
+  sensitivity_.traj_cluster_delayed_time_= &trajClDelayedTime;
   sensitivity_.internal_probability_=internalProbability;
   sensitivity_.internal_chi_squared_=internalChiSquared;
   sensitivity_.external_chi_squared_=externalChiSquared;
@@ -993,6 +1083,7 @@ SensitivityModule::process(datatools::things& workItem) {
   sensitivity_.track_count_=trackCount;
   sensitivity_.associated_track_count_=electronCandidates.size();
   sensitivity_.alpha_count_=alphaCandidates.size();
+  sensitivity_.delayed_cluster_hit_count_=delayedClusterHitCount;
 
   tree_->Fill();
   truth_.lower_electron_energy_=lowerTrueEnergy;
@@ -1073,7 +1164,7 @@ int SensitivityModule::InsertAndGetPosition(double toInsert, std::vector<double>
 {
   std::vector<double>::iterator it;
   int len=vec.size();
-  
+
   it=vec.begin();
   for (int i=0;i<len;i++)
   {
