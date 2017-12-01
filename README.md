@@ -74,10 +74,10 @@ Use the falaise flreconstruct pipeline instructions to see how to build and inte
 **sensitivity.true_vertex_z** : Z coordinate of the true event vertex (generator level, from SD bank).  The z direction is vertical, parallel to the wires, you can see it in side view. Unit is mm.
 
 **sensitivity.true_higher_particle_type** : The particle type (electon, gamma, positron) of the highest energy particle
-in the event.
+in the event. (1 - gamma, 3-electron, 47- alpha)
 
 **sensitivity.true_lower_particle_type** : The particle type (electon, gamma, positron) of the lowest energy particle
-in the event.
+in the event. (1 - gamma, 3-electron, 47- alpha)
 
 **sensitivity.first_vertex_x** : If there are two tracks, vertex x position of an arbitrary “first” track. Foil is at x ~ 0, main calo walls are at +/- 434.994 mm according to flvisualize. Unit is mm.
 
