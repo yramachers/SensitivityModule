@@ -54,6 +54,8 @@ typedef struct SensitivityEventStorage{
   double true_highest_primary_energy_;
   double true_second_primary_energy_;
   double true_total_energy_;
+  int true_higher_particle_type_;
+  int true_lower_particle_type_;
   double true_vertex_x_;
   double true_vertex_y_;
   double true_vertex_z_;
@@ -106,7 +108,7 @@ typedef struct SensitivityEventStorage{
   double topology_1e1gamma_; // Does topology look like 1 electron, 1 gamma?
   double topology_1engamma_; //  Does topology look like 1 electron, 1 or more gammas?
   double topology_1e1alpha_; //  Does topology look like 1 electron, 1 alpha?
-  
+
   // For electrons and gammas, get the position of the earliest associated calorimeter hit
   // (for electrons we currently associate only 1 but gamma tracks can hit multiple calos
   std::vector<bool> electron_hits_mainwall_;
@@ -127,10 +129,13 @@ typedef struct SensitivityEventStorage{
   int associated_track_count_; // How many reconstructed tracks with an associated calorimeter?
   int alpha_count_; // How many reconstructed alphas (ie delayed hits)?
   int foil_alpha_count_; //How many reconstructed alphas (ie delayed hits) that we think have a vertex on the foil?
+  int delayed_cluster_hit_count_; //How many gieger hits in the alpha track
   double latest_delayed_hit_; // Time of the latest delayed hit (if any)
   double small_cluster_count_; // How many clusters with 2 hits?
   double highest_gamma_energy_; // Highest energy gamma
   double edgemost_vertex_; // Y position of the foil vertex nearest the side of the detector
+  double alpha_track_length_; // Length of the alpha track in mm, different metrics for different numbers of delayed hits
+  double proj_track_length_alpha_; // Length of the alpha track when projected back to the foil in mm
 
 }sensitivityeventstorage;
 
@@ -171,7 +176,7 @@ class SensitivityModule : public dpp::base_module {
   int InsertAndGetPosition(double toInsert, std::vector<double> &vec, bool highestFirst);
   void PopulateWallVectors(std::vector<int> &calotypes, std::vector<bool> &mainVec, std::vector<bool> &xVec, std::vector<bool> &vetoVec);
   template <typename T>  void InsertAt(T toInsert, std::vector<T> &vec, int position);
-  
+
 
   // Macro which automatically creates the interface needed
   // to enable the module to be loaded at runtime

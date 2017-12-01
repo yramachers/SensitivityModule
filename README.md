@@ -56,22 +56,28 @@ Use the falaise flreconstruct pipeline instructions to see how to build and inte
 **sensitivity.electron_charges** : Vector of all electron-candidate charges. In descending order of energy. 1 = undefined (straight track), 4 = positive, 8 = negative.
 
 **sensitivity.gamma_energies** : Vector of all electron-candidate energies. In descending order of energy.
-                               
+
 **sensitivity.true_higher_electron_energy** :  Same as true_highest_primary_energy
-                        
+
 **sensitivity.true_lower_electron_energy** : Same as  sensitivity.true_second_primary_energy
 
 **sensitivity.true_highest_primary_energy** : The energy of the highest-energy primary particle in the interaction (from SD bank)
 
 **sensitivity.true_second_primary_energy** : The energy of the second-highest-energy primary particle in the interaction (from SD bank)
-   
+
 **sensitivity.true_total_energy** : Summed energy of every primary particle in the interaction (from SD bank)
 
 **sensitivity.true_vertex_x** : X coordinate of the true event vertex (generator level, from SD bank). Foil is at x ~ 0, main calo walls are at +/- 434.994 mm according to flvisualize. Unit is mm.
 
 **sensitivity.true_vertex_y** : Y coordinate of the true event vertex (generator level, from SD bank).  The y direction is horizontal, parallel to the foil, you can see it in top view. Unit is mm.
 
-**sensitivity.true_vertex_z** : Z coordinate of the true event vertex (generator level, from SD bank).  The z direction is vertical, parallel to the wires, you can see it in side view. Unit is mm. 
+**sensitivity.true_vertex_z** : Z coordinate of the true event vertex (generator level, from SD bank).  The z direction is vertical, parallel to the wires, you can see it in side view. Unit is mm.
+
+**sensitivity.true_higher_particle_type** : The particle type (electon, gamma, positron) of the highest energy particle
+in the event. (1 - gamma, 3-electron, 47- alpha)
+
+**sensitivity.true_lower_particle_type** : The particle type (electon, gamma, positron) of the lowest energy particle
+in the event. (1 - gamma, 3-electron, 47- alpha)
 
 **sensitivity.first_vertex_x** : If there are two tracks, vertex x position of an arbitrary “first” track. Foil is at x ~ 0, main calo walls are at +/- 434.994 mm according to flvisualize. Unit is mm.
 
@@ -105,6 +111,8 @@ Use the falaise flreconstruct pipeline instructions to see how to build and inte
 
 **sensitivity.time_delay** : If 2 calorimeter hits  - time delay in nanoseconds between the hits. Used in the past as a crude proxy for internal/external probability.
 
+**sensitivity.traj_cluster_delayed_time** : If a delayed track, the time of the first delayed hit in ns
+
 **sensitivity.topology_2e** : True if event has a 2-electron topology (2 tracks with associated calorimeter hits, no gammas, no other tracks). False if not.
 
 **sensitivity.internal_probability** :  Calculates the probability that it is an internal event (both tracks are initiated in the foil). Available for 2-electron events, or 1-electron-n-gamma events, in which case it uses the path of the highest energy gamma. If internal, this should be equally distributed from 0 to 1. If external (particle leaves one calorimeter, travels to foil, then to another calorimeter) this will be very close to 0. Calculated from energy and time of calorimeter hits vs length of tracks.
@@ -114,7 +122,7 @@ Use the falaise flreconstruct pipeline instructions to see how to build and inte
 **sensitivity.external_probability** : If 2 associated tracks, this calculates the probability that it is an external event (particle leaves one calorimeter, travels to foil, then to another calorimeter).   Available for 2-electron events, or 1-electron-n-gamma events, in which case it uses the path of the highest energy gamma. If external, this should be equally distributed from 0 to 1. If internal  (both tracks are initiated in the foil) this will be very close to 0. Calculated from energy and time of calorimeter hits vs length of tracks.
 
 **sensitivity.external_chi_squared** :  Intermediate step to calculating external_probability
-                               
+
 **sensitivity.foil_projected_internal_probability;
 sensitivity.foil_projected_external_probability** : As internal and external probability, if each track’s length were extended to project the track linearly back to the foil
 
@@ -134,6 +142,9 @@ sensitivity.foil_projected_external_probability** : As internal and external pro
 
 **sensitivity.foil_alpha_count** : Not used yet
 
+**sensitivity.delayed_cluster_hit_count** : Number of hits in the delayed cluster. Used to determine the correct
+metric for calculating the alpha track and alpha projected track lengths
+
 **sensitivity.latest_delayed_hit** : Not used yet
 
 **sensitivity.small_cluster_count** : Number of clusters with 2 hits
@@ -143,6 +154,14 @@ sensitivity.foil_projected_external_probability** : As internal and external pro
 **sensitivity.highest_gamma_energy** : Highest energy gamma, may come from more than 1 calorimeter hit as specified by gamma tracko- clustering
 
 **sensitivity.edgemost_vertex** : Absolute y position (in mm) of the vertex that is nearest to the edge of the detector in the y dimension. This could possibly be used with small cluster identification to find events near the edge of the detector who have two tracks, each associated with a calorimeter and with close vertices on the foil, but for one of which there are only 2 hits (because it is too near the edge to pass through 3 cells).
+
+**sensitivity.alpha_track_length** : Length in mm of the delayed track. This length is calculated in different
+ways depending on the number of hits in the delayed cluster. This is due to the way < 3 hit tracks are treated by
+alpha finder. More detail is provided in code comments.
+
+**sensitivity.proj_track_length_alpha** : Length in mm of delayed track when it is projected back to the back to the
+electron projeted foil vertex. Again this calculation is different for delayed tracks with 1,2 or >2 hits. See code for
+more detail.
 
 **sensitivity.gamma_fractions_mainwall;
 sensitivity.gamma_fractions_xwall;
@@ -158,4 +177,3 @@ Vectors corresponding to each reconstructed gamma in the event, starting from th
 sensitivity.electron_hits_xwall;
 sensitivity.electron_hits_gveto** :
 Vectors corresponding to each reconstructed electron in the event, starting from the most energetic and decreasing in energy order. For each one, if the associated calo hit for that electron was in the specified wall, it will be true, otherwise false. (Therefore, for each entry number, only 1 of these three should be true).
-
