@@ -41,9 +41,7 @@ typedef struct SensitivityEventStorage{
   double total_calorimeter_energy_;
 
   double lower_electron_energy_; // MeV
-  double higher_electron_energy_;// MeV
-  double true_lower_electron_energy_;
-  double true_higher_electron_energy_;
+  double higher_electron_energy_;// MeVir
 
   std::vector<double> electron_energies_;
   std::vector<int> electron_charges_;
@@ -91,7 +89,6 @@ typedef struct SensitivityEventStorage{
 
   double projection_distance_xy_; // Distance between the end of the track and the foil projected vertex, in the xy plane (ie ignoring distance along wires - gives an indication of how many hits were missed). There are 2 tracks in a good event, and we want the longer of the two distances.
   int vertices_on_foil_; // How many tracks included a vertex on the foil?
-  int first_vertices_on_foil_; // How many tracks had their FIRST vertex on the foil? OBSOLETE/USELESS
 
   // For calculating probability of an  internal/external topology
   double time_delay_;

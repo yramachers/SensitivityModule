@@ -51,8 +51,6 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("reco.electron_charges",&sensitivity_.electron_charges_);
   tree_->Branch("reco.gamma_energies",&sensitivity_.gamma_energies_);
 
-  tree_->Branch("truth.higher_electron_energy",&sensitivity_.true_higher_electron_energy_);
-  tree_->Branch("truth.lower_electron_energy",&sensitivity_.true_lower_electron_energy_);
   tree_->Branch("truth.highest_primary_energy",&sensitivity_.true_highest_primary_energy_);
   tree_->Branch("truth.second_primary_energy",&sensitivity_.true_second_primary_energy_);
   tree_->Branch("truth.higher_particle_type",&sensitivity_.true_higher_particle_type_);
@@ -79,7 +77,6 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
 
 
   tree_->Branch("reco.vertices_on_foil",&sensitivity_.vertices_on_foil_);
-  tree_->Branch("reco.first_vertices_on_foil",&sensitivity_.first_vertices_on_foil_); // Obsolete, kept for legacy in case it is used anywhere
   tree_->Branch("reco.angle_between_tracks",&sensitivity_.angle_between_tracks_);
   tree_->Branch("reco.same_side_of_foil",&sensitivity_.same_side_of_foil_);
   tree_->Branch("reco.first_track_direction_x",&sensitivity_.first_track_direction_x_);
@@ -114,7 +111,6 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("reco.proj_track_length_alpha",&sensitivity_.proj_track_length_alpha_);
   tree_->Branch("reco.latest_delayed_hit",&sensitivity_.latest_delayed_hit_);
   tree_->Branch("reco.small_cluster_count",&sensitivity_.small_cluster_count_);
-  tree_->Branch("reco.third_calo_energy",&sensitivity_.highest_gamma_energy_);// Highest energy gamma (dupe of highest_gamma_energy for legacy)
   tree_->Branch("reco.highest_gamma_energy",&sensitivity_.highest_gamma_energy_);
   tree_->Branch("reco.edgemost_vertex",&sensitivity_.edgemost_vertex_);
 
@@ -987,8 +983,6 @@ SensitivityModule::process(datatools::things& workItem) {
   sensitivity_.true_highest_primary_energy_=higherTrueEnergy;
   sensitivity_.true_second_primary_energy_=lowerTrueEnergy;
   sensitivity_.true_total_energy_= totalTrueEnergy;
-  sensitivity_.true_lower_electron_energy_=lowerTrueEnergy;
-  sensitivity_.true_higher_electron_energy_=higherTrueEnergy;
   sensitivity_.true_higher_particle_type_=higherTrueType;
   sensitivity_.true_lower_particle_type_=lowerTrueType;
   sensitivity_.true_vertex_x_=trueVertexX;
@@ -1001,7 +995,6 @@ SensitivityModule::process(datatools::things& workItem) {
 
   // Vertices
   sensitivity_.vertices_on_foil_=verticesOnFoil;
-  sensitivity_.first_vertices_on_foil_=firstVerticesOnFoil;
   sensitivity_.first_vertex_x_= vertexPosition[highEnergyIndex].X();
   sensitivity_.first_vertex_y_= vertexPosition[highEnergyIndex].Y();
   sensitivity_.first_vertex_z_= vertexPosition[highEnergyIndex].Z();
