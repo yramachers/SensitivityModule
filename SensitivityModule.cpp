@@ -123,12 +123,6 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("reco.gamma_fractions_xwall",&sensitivity_.gamma_fractions_xwall_);
   tree_->Branch("reco.gamma_fractions_gveto",&sensitivity_.gamma_fractions_gveto_);
 
-
-  truthtree_ = new TTree("Truth","Truth");
-  truthtree_->SetDirectory(hfile_);
-  truthtree_->Branch("truth.lower_electron_energy",&truth_.lower_electron_energy_);
-  truthtree_->Branch("truth.higher_electron_energy",&truth_.higher_electron_energy_);
-
   this->_set_initialized(true);
 }
 //! [SensitivityModule::Process]
@@ -1075,9 +1069,7 @@ SensitivityModule::process(datatools::things& workItem) {
   sensitivity_.delayed_cluster_hit_count_=delayedClusterHitCount;
 
   tree_->Fill();
-  truth_.lower_electron_energy_=lowerTrueEnergy;
-  truth_.higher_electron_energy_=higherTrueEnergy;
-  truthtree_->Fill();
+
   // MUST return a status, see ref dpp::processing_status_flags_type
   return dpp::base_module::PROCESS_OK;
 }
@@ -1183,7 +1175,6 @@ double SensitivityModule::ProbabilityFromChiSquared(double chiSquared)
 void SensitivityModule::reset() {
   hfile_->cd();
   tree_->Write();
-  truthtree_->Write();
   hfile_->Close(); //
   std::cout << "In reset: finished conversion, file closed " << std::endl;
 

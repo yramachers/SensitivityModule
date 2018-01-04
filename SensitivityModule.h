@@ -134,10 +134,7 @@ typedef struct SensitivityEventStorage{
 
 }sensitivityeventstorage;
 
-typedef struct TruthEventStorage{
-  double lower_electron_energy_;
-  double higher_electron_energy_;
-}trutheventstorage;
+
 // This Project
 class SensitivityModule : public dpp::base_module {
   static const uint minHitsInCluster=3;
@@ -158,9 +155,6 @@ class SensitivityModule : public dpp::base_module {
   TFile* hfile_;
   TTree* tree_;
   SensitivityEventStorage sensitivity_;
-  TTree* truthtree_;
-  TruthEventStorage truth_;
-
 
   // geometry service
   const geomtools::manager* geometry_manager_; //!< The geometry manager
