@@ -51,16 +51,6 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("reco.electron_charges",&sensitivity_.electron_charges_);
   tree_->Branch("reco.gamma_energies",&sensitivity_.gamma_energies_);
 
-  tree_->Branch("truth.highest_primary_energy",&sensitivity_.true_highest_primary_energy_);
-  tree_->Branch("truth.second_primary_energy",&sensitivity_.true_second_primary_energy_);
-  tree_->Branch("truth.higher_particle_type",&sensitivity_.true_higher_particle_type_);
-  tree_->Branch("truth.lower_particle_type",&sensitivity_.true_lower_particle_type_);
-  tree_->Branch("truth.total_energy",&sensitivity_.true_total_energy_);
-  tree_->Branch("truth.vertex_x",&sensitivity_.true_vertex_x_);
-  tree_->Branch("truth.vertex_y",&sensitivity_.true_vertex_y_);
-  tree_->Branch("truth.vertex_z",&sensitivity_.true_vertex_z_);
-
-
   tree_->Branch("reco.first_vertex_x",&sensitivity_.first_vertex_x_);
   tree_->Branch("reco.first_vertex_y",&sensitivity_.first_vertex_y_);
   tree_->Branch("reco.first_vertex_z",&sensitivity_.first_vertex_z_);
@@ -123,6 +113,17 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("reco.gamma_fractions_xwall",&sensitivity_.gamma_fractions_xwall_);
   tree_->Branch("reco.gamma_fractions_gveto",&sensitivity_.gamma_fractions_gveto_);
 
+  // Truth quantities (only applicable to simulation)
+  tree_->Branch("true.highest_primary_energy",&sensitivity_.true_highest_primary_energy_);
+  tree_->Branch("true.second_primary_energy",&sensitivity_.true_second_primary_energy_);
+  tree_->Branch("true.higher_particle_type",&sensitivity_.true_higher_particle_type_);
+  tree_->Branch("true.lower_particle_type",&sensitivity_.true_lower_particle_type_);
+  tree_->Branch("true.total_energy",&sensitivity_.true_total_energy_);
+  tree_->Branch("true.vertex_x",&sensitivity_.true_vertex_x_);
+  tree_->Branch("true.vertex_y",&sensitivity_.true_vertex_y_);
+  tree_->Branch("true.vertex_z",&sensitivity_.true_vertex_z_);
+
+  
   this->_set_initialized(true);
 }
 //! [SensitivityModule::Process]
@@ -971,15 +972,7 @@ SensitivityModule::process(datatools::things& workItem) {
   sensitivity_.higher_electron_energy_=higherElectronEnergy;
   sensitivity_.total_calorimeter_energy_ = totalCalorimeterEnergy;
 
-  // Truth info, simulation only
-  sensitivity_.true_highest_primary_energy_=higherTrueEnergy;
-  sensitivity_.true_second_primary_energy_=lowerTrueEnergy;
-  sensitivity_.true_total_energy_= totalTrueEnergy;
-  sensitivity_.true_higher_particle_type_=higherTrueType;
-  sensitivity_.true_lower_particle_type_=lowerTrueType;
-  sensitivity_.true_vertex_x_=trueVertexX;
-  sensitivity_.true_vertex_y_=trueVertexY;
-  sensitivity_.true_vertex_z_=trueVertexZ;
+
 
   // "First" track is the higher energy one
   //uint highEnergyIndex =(calorimeterEnergy[0]>calorimeterEnergy[1] ? 0:1);
@@ -1068,6 +1061,16 @@ SensitivityModule::process(datatools::things& workItem) {
   sensitivity_.alpha_count_=alphaCandidates.size();
   sensitivity_.delayed_cluster_hit_count_=delayedClusterHitCount;
 
+  // Truth info, simulation only
+  sensitivity_.true_highest_primary_energy_=higherTrueEnergy;
+  sensitivity_.true_second_primary_energy_=lowerTrueEnergy;
+  sensitivity_.true_total_energy_= totalTrueEnergy;
+  sensitivity_.true_higher_particle_type_=higherTrueType;
+  sensitivity_.true_lower_particle_type_=lowerTrueType;
+  sensitivity_.true_vertex_x_=trueVertexX;
+  sensitivity_.true_vertex_y_=trueVertexY;
+  sensitivity_.true_vertex_z_=trueVertexZ;
+  
   tree_->Fill();
 
   // MUST return a status, see ref dpp::processing_status_flags_type

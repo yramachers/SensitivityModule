@@ -48,15 +48,6 @@ typedef struct SensitivityEventStorage{
   std::vector<double> gamma_energies_;
   std::vector<double>* traj_cluster_delayed_time_;
 
-  // Truth info - particle energies in MeV and primary vertex position
-  double true_highest_primary_energy_;
-  double true_second_primary_energy_;
-  double true_total_energy_;
-  int true_higher_particle_type_;
-  int true_lower_particle_type_;
-  double true_vertex_x_;
-  double true_vertex_y_;
-  double true_vertex_z_;
 
   // Get vertex position of up to two tracks in mm
   double first_vertex_x_; // Foil is at x ~ 0, main calo walls are at +/- 434.994 mm according to flvisualize
@@ -131,7 +122,17 @@ typedef struct SensitivityEventStorage{
   double edgemost_vertex_; // Y position of the foil vertex nearest the side of the detector
   double alpha_track_length_; // Length of the alpha track in mm, different metrics for different numbers of delayed hits
   double proj_track_length_alpha_; // Length of the alpha track when projected back to the foil in mm
-
+  
+  // Truth info - particle energies in MeV and primary vertex position
+  double true_highest_primary_energy_;
+  double true_second_primary_energy_;
+  double true_total_energy_;
+  int true_higher_particle_type_;
+  int true_lower_particle_type_;
+  double true_vertex_x_;
+  double true_vertex_y_;
+  double true_vertex_z_;
+  
 }sensitivityeventstorage;
 
 
