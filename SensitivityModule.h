@@ -94,9 +94,7 @@ typedef struct SensitivityEventStorage{
   double time_delay_;
   bool topology_2e_; // Does it have a 2-electron-like topology?
   double internal_probability_;
-  double internal_chi_squared_; // No longer used, was for validation of calculation
   double external_probability_;
-  double external_chi_squared_; // No longer used, was for validation of calculation
 
   // These might help where the clusterer cannot reconstruct tracks all the way to the foil
   double foil_projected_internal_probability_;

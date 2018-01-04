@@ -90,9 +90,7 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("reco.traj_cl_del_time",&sensitivity_.traj_cluster_delayed_time_);
   tree_->Branch("reco.topology_2e",&sensitivity_.topology_2e_);
   tree_->Branch("reco.internal_probability",&sensitivity_.internal_probability_);
-  tree_->Branch("reco.internal_chi_squared",&sensitivity_.internal_chi_squared_);
   tree_->Branch("reco.external_probability",&sensitivity_.external_probability_);
-  tree_->Branch("reco.external_chi_squared",&sensitivity_.external_chi_squared_);
   tree_->Branch("reco.foil_projected_internal_probability",&sensitivity_.foil_projected_internal_probability_);
   tree_->Branch("reco.foil_projected_external_probability",&sensitivity_.foil_projected_external_probability_);
   tree_->Branch("reco.topology_1e1gamma",&sensitivity_.topology_1e1gamma_);
@@ -1045,8 +1043,6 @@ SensitivityModule::process(datatools::things& workItem) {
   sensitivity_.time_delay_=TMath::Abs(timeDelay);
   sensitivity_.traj_cluster_delayed_time_= &trajClDelayedTime;
   sensitivity_.internal_probability_=internalProbability;
-  sensitivity_.internal_chi_squared_=internalChiSquared;
-  sensitivity_.external_chi_squared_=externalChiSquared;
   sensitivity_.external_probability_=externalProbability;
   sensitivity_.foil_projected_internal_probability_=foilProjectedInternalProbability;
   sensitivity_.foil_projected_external_probability_=foilProjectedExternalProbability;
