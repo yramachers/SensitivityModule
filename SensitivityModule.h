@@ -46,7 +46,7 @@ typedef struct SensitivityEventStorage{
   std::vector<double> electron_energies_;
   std::vector<int> electron_charges_;
   std::vector<double> gamma_energies_;
-  std::vector<double>* traj_cluster_delayed_time_;
+  std::vector<double>* delayed_track_time_;
 
 
   // Get vertex position of up to two tracks in mm
@@ -82,7 +82,7 @@ typedef struct SensitivityEventStorage{
   int vertices_on_foil_; // How many tracks included a vertex on the foil?
 
   // For calculating probability of an  internal/external topology
-  double time_delay_;
+  double calo_hit_time_separation_;
   bool topology_2e_; // Does it have a 2-electron-like topology?
   double internal_probability_;
   double external_probability_;

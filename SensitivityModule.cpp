@@ -76,9 +76,8 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("reco.second_track_direction_y",&sensitivity_.second_track_direction_y_);
   tree_->Branch("reco.second_track_direction_z",&sensitivity_.second_track_direction_z_);
 
-  tree_->Branch("reco.time_delay",&sensitivity_.time_delay_);
-  tree_->Branch("reco.traj_cl_del_time",&sensitivity_.traj_cluster_delayed_time_);
-  tree_->Branch("reco.topology_2e",&sensitivity_.topology_2e_);
+  tree_->Branch("reco.calo_hit_time_separation",&sensitivity_.calo_hit_time_separation_);
+  tree_->Branch("reco.delayed_track_time",&sensitivity_.delayed_track_time_);
   tree_->Branch("reco.internal_probability",&sensitivity_.internal_probability_);
   tree_->Branch("reco.external_probability",&sensitivity_.external_probability_);
   tree_->Branch("reco.foil_projected_internal_probability",&sensitivity_.foil_projected_internal_probability_);
@@ -86,7 +85,7 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("reco.topology_1e1gamma",&sensitivity_.topology_1e1gamma_);
   tree_->Branch("reco.topology_1e1alpha",&sensitivity_.topology_1e1alpha_);
   tree_->Branch("reco.topology_1engamma",&sensitivity_.topology_1engamma_);
-
+  tree_->Branch("reco.topology_2e",&sensitivity_.topology_2e_);
 
   tree_->Branch("reco.calorimeter_hit_count",&sensitivity_.calorimeter_hit_count_);
   tree_->Branch("reco.cluster_count",&sensitivity_.cluster_count_);
@@ -1027,8 +1026,8 @@ SensitivityModule::process(datatools::things& workItem) {
   sensitivity_.angle_between_tracks_= trackDirection[highEnergyIndex].Angle(trackDirection[lowEnergyIndex]);
 
   // Timing
-  sensitivity_.time_delay_=TMath::Abs(timeDelay);
-  sensitivity_.traj_cluster_delayed_time_= &trajClDelayedTime;
+  sensitivity_.calo_hit_time_separation_=TMath::Abs(timeDelay);
+  sensitivity_.delayed_track_time_= &trajClDelayedTime;
   sensitivity_.internal_probability_=internalProbability;
   sensitivity_.external_probability_=externalProbability;
   sensitivity_.foil_projected_internal_probability_=foilProjectedInternalProbability;

@@ -83,9 +83,9 @@ Use the falaise flreconstruct pipeline instructions to see how to build and inte
 
 **reco.first_track_direction_x; reco.first_track_direction_y ;                          **reco.first_track_direction_z; reco.second_track_direction_x;                              **reco.second_track_direction_y ; reco.second_track_direction_z** :  Initial direction vectors for the two tracks (Only if two tracks, arbitrary which is which)
 
-**reco.time_delay** : If 2 calorimeter hits  - time delay in nanoseconds between the hits. Used in the past as a crude proxy for internal/external probability.
+**reco.calo_hit_time_separation** : If 2 calorimeter hits  - time delay in nanoseconds between the hits. Used in the past as a crude proxy for internal/external probability.
 
-**reco.traj_cluster_delayed_time** : If a delayed track, the time of the first delayed hit in ns
+**reco.delayed_track_time** : If a delayed track, the time of the first delayed hit in ns
 
 **reco.topology_2e** : True if event has a 2-electron topology (2 tracks with associated calorimeter hits, no gammas, no other tracks). False if not.
 
