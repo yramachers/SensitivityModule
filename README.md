@@ -26,10 +26,7 @@ CMakeLists_template.txt (for Mac) or CMakeLists_template_linux.txt (works on UCL
 
 Use the falaise flreconstruct pipeline instructions to see how to build and integrate this module to your pipeline.
 
-## Output tuple structure
-
-
-**reco.total_calorimeter_energy** : Summed energy of all reconstructed calorimeter hits (CD bank)
+## Output tuple structure - standard cuts
 
 **reco.passes_two_calorimeters** : True if there are exactly 2 reconstructed calorimeter hits over 50 keV, of which at least 1 is over 150keV (CD bank)
 
@@ -41,9 +38,32 @@ Use the falaise flreconstruct pipeline instructions to see how to build and inte
 
 **reco.passes_associated_calorimeters** : True if there are exactly two tracks, and they are both associated to one or more calorimeter hits. Equivalent (at the moment to a 2-electron topology)
 
+## Output tuple structure - basic counts
+
+**reco.calorimeter_hit_count** : Number of calorimeter hits
+
+**reco.cluster_count** : Number of clusters with 3 or more hits
+
+**reco.track_count** : Number of tracks in the tracker
+
+**reco.associated_track_count** : Number of electron candidates
+
+**reco.small_cluster_count** : Number of clusters with 2 hits
+
+
+## Output tuple structure - reconstructed particles
+
 **reco.number_of_electrons** : Number of electron-candidate tracks - that is, tracks that are associated to one or more calorimeter hits. No check on the charge as of yet (but you can do it yourself looking at electron_charges). No requirement for a foil vertex. (PTD bank)
 
+**reco.electron_charges** : Vector of all electron-candidate charges. In descending order of energy. 1 = undefined (straight track), 4 = positive, 8 = negative.
+
 **reco.number_of_gammas** : Number of gamma candidates - when calorimeter hits that aren’t associated to tracks have been grouped by the gamma tracko-clustering algorithm to correspond to what appear to be individual gammas (PTD bank)
+
+**reco.alpha_count** : Number of alpha candidates (delayed clusters of 1 or more tracker hits with no associated calorimeter hit)
+
+## Output tuple structure - energies
+
+**reco.total_calorimeter_energy** : Summed energy of all reconstructed calorimeter hits (CD bank)
 
 **reco.higher_electron_energy** : Energy of the highest-energy electron candidate, summed over all associated calorimeter hits (at the moment I don’t think more than 1 hit is allowed, but that could change in future). 0 if no electron candidates. Corresponds to ** reco.electron_energies[0].
 
@@ -51,9 +71,11 @@ Use the falaise flreconstruct pipeline instructions to see how to build and inte
 
 **reco.electron_energies** : Vector of all electron-candidate energies. In descending order of energy.
 
-**reco.electron_charges** : Vector of all electron-candidate charges. In descending order of energy. 1 = undefined (straight track), 4 = positive, 8 = negative.
-
 **reco.gamma_energies** : Vector of all electron-candidate energies. In descending order of energy.
+
+**reco.highest_gamma_energy** : Highest energy gamma, may come from more than 1 calorimeter hit as specified by gamma tracko- clustering
+
+## Output tuple structure - Vertex positions (max 2 tracks)
 
 **reco.first_vertex_x** : If there are two tracks, vertex x position of an arbitrary “first” track. Foil is at x ~ 0, main calo walls are at +/- 434.994 mm according to flvisualize. Unit is mm.
 
@@ -67,9 +89,9 @@ Use the falaise flreconstruct pipeline instructions to see how to build and inte
 
 **reco.second_vertex_z** : If there are two tracks, vertex z position of an arbitrary “2nd” track. The z direction is vertical, parallel to the wires, you can see it in side view. Unit is mm.
 
-**reco.vertex_separation** : Distance between the inner-most (nearest to the foil) vertices of the two tracks (only if there are 2 electron candidates).  Unit is mm.
+**reco.first_proj_vertex_y; reco.first_proj_vertex_z; reco.second_proj_vertex_y; reco.second_proj_vertex_z** : Only for 2-electron or 1e-n-gamma topologies. If both tracks were linearly projected back to the foil (x=0), these would be their y and z coordinates.  Unit is mm.
 
-**reco.first_projected_vertex_y; reco.first_projected_vertex_z; reco.second_projected_vertex_y; reco.second_projected_vertex_z** : Only for 2-electron or 1e-n-gamma topologies. If both tracks were linearly projected back to the foil (x=0), these would be their y and z coordinates.  Unit is mm.
+**reco.vertex_separation** : Distance between the inner-most (nearest to the foil) vertices of the two tracks (only if there are 2 electron candidates).  Unit is mm.
 
 **reco.foil_projection_separation** : Only if there are 2 electron candidates. If both tracks were linearly projected back to the foil, this is the distance between where the tracks intersect the foil.  Unit is mm.
 
@@ -77,17 +99,26 @@ Use the falaise flreconstruct pipeline instructions to see how to build and inte
 
 **reco.vertices_on_foil** : If 2 tracks: number of tracks with a vertex on the foil.
 
+**reco.edgemost_vertex** : Absolute y position (in mm) of the vertex that is nearest to the edge of the detector in the y dimension. This could possibly be used with small cluster identification to find events near the edge of the detector who have two tracks, each associated with a calorimeter and with close vertices on the foil, but for one of which there are only 2 hits (because it is too near the edge to pass through 3 cells).
+
+## Output tuple structure - topologies
+
+**reco.topology_1e1gamma** : True if event has 1 electron candidate (track with associated hits) and 1 gamma candidate (collection of unassociated hits with timings corresponding to a single gamma)
+
+**reco.topology_1e1alpha** : True if event has 1 electron candidate (track with associated hits) and 1 alpha candidate (cluster of delayed tracker hits with no associated calorimeter hit)
+
+**reco.topology_1engamma** : True if event has 1 electron candidate (track with associated hits) and 1 or more gamma candidates (collections of unassociated hits with timings corresponding to a gamma)
+
+**reco.topology_2e** : True if event has a 2-electron topology (2 tracks with associated calorimeter hits, no gammas, no other tracks). False if not.
+
+
+## Output tuple structure - Multi-track topology info
+
 **reco.angle_between_tracks** : For 2-electron events: Angle between the initial momentum vectors of the two tracks. Does not require them to share a vertex (maybe it should). For 1-electron-n-gamma events, angle between the electron track and the highest-energy gamma “track”, if we assume that the gamma travels from the foil-most electron vertex to the centre of the calorimeter that it hits first.
 
 **reco.same_side_of_foil** : If 2 tracks: True if both tracks are on the same side of the foil, false if not
 
 **reco.first_track_direction_x; reco.first_track_direction_y ;                          **reco.first_track_direction_z; reco.second_track_direction_x;                              **reco.second_track_direction_y ; reco.second_track_direction_z** :  Initial direction vectors for the two tracks (Only if two tracks, arbitrary which is which)
-
-**reco.calo_hit_time_separation** : If 2 calorimeter hits  - time delay in nanoseconds between the hits. Used in the past as a crude proxy for internal/external probability.
-
-**reco.delayed_track_time** : If a delayed track, the time of the first delayed hit in ns
-
-**reco.topology_2e** : True if event has a 2-electron topology (2 tracks with associated calorimeter hits, no gammas, no other tracks). False if not.
 
 **reco.internal_probability** :  Calculates the probability that it is an internal event (both tracks are initiated in the foil). Available for 2-electron events, or 1-electron-n-gamma events, in which case it uses the path of the highest energy gamma. If internal, this should be equally distributed from 0 to 1. If external (particle leaves one calorimeter, travels to foil, then to another calorimeter) this will be very close to 0. Calculated from energy and time of calorimeter hits vs length of tracks.
 
@@ -96,36 +127,22 @@ Use the falaise flreconstruct pipeline instructions to see how to build and inte
 **reco.foil_projected_internal_probability;
 reco.foil_projected_external_probability** : As internal and external probability, if each track’s length were extended to project the track linearly back to the foil
 
-**reco.topology_1e1gamma** : True if event has 1 electron candidate (track with associated hits) and 1 gamma candidate (collection of unassociated hits with timings corresponding to a single gamma)
+**reco.calo_hit_time_separation** : If 2 calorimeter hits  - time delay in nanoseconds between the hits. Used in the past as a crude proxy for internal/external probability.
 
-**reco.topology_1engamma** : True if event has 1 electron candidate (track with associated hits) and 1 or more gamma candidates (collections of unassociated hits with timings corresponding to a gamma)
+## Output tuple structure - alpha finding
 
-**reco.calorimeter_hit_count** : Number of calorimeter hits
-
-**reco.cluster_count** : Number of clusters with 3 or more hits
-
-**reco.track_count** : Number of tracks in the tracker
-
-**reco.associated_track_count** : Number of electron candidates
-
-**reco.alpha_count** : Not used yet
+**reco.delayed_track_time** : If a delayed track, the time of the first delayed hit in ns
 
 **reco.foil_alpha_count** : Not used yet
 
 **reco.delayed_cluster_hit_count** : Number of hits in the delayed cluster. Used to determine the correct
 metric for calculating the alpha track and alpha projected track lengths
 
-**reco.latest_delayed_hit** : Not used yet
-
-**reco.small_cluster_count** : Number of clusters with 2 hits
-
-**reco.highest_gamma_energy** : Highest energy gamma, may come from more than 1 calorimeter hit as specified by gamma tracko- clustering
-
-**reco.edgemost_vertex** : Absolute y position (in mm) of the vertex that is nearest to the edge of the detector in the y dimension. This could possibly be used with small cluster identification to find events near the edge of the detector who have two tracks, each associated with a calorimeter and with close vertices on the foil, but for one of which there are only 2 hits (because it is too near the edge to pass through 3 cells).
-
 **reco.alpha_track_length** : Length in mm of the delayed track. This length is calculated in different ways depending on the number of hits in the delayed cluster. This is due to the way < 3 hit tracks are treated by alpha finder. More detail is provided in code comments.
 
 **reco.proj_track_length_alpha** : Length in mm of delayed track when it is projected back to the back to the electron projected foil vertex. Again this calculation is different for delayed tracks with 1,2 or >2 hits. See code for more detail.
+
+## Output tuple structure - calorimeter positions 
 
 **reco.gamma_fractions_mainwall;
 reco.gamma_fractions_xwall;
@@ -143,7 +160,7 @@ reco.electron_hits_gveto** :
 Vectors corresponding to each reconstructed electron in the event, starting from the most energetic and decreasing in energy order. For each one, if the associated calo hit for that electron was in the specified wall, it will be true, otherwise false. (Therefore, for each entry number, only 1 of these three should be true).
 
 
-## For simulation only
+## Output tuple structure - For simulation only
 
 **true.highest_primary_energy** : The energy of the highest-energy primary particle in the interaction (from SD bank)
 

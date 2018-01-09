@@ -37,20 +37,38 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   hfile_->cd();
   tree_ = new TTree("Sensitivity","Sensitivity");
   tree_->SetDirectory(hfile_);
-  tree_->Branch("reco.total_calorimeter_energy",&sensitivity_.total_calorimeter_energy_);
+  
+  // Reconstructed quantities
+  
+  // Standard cuts
   tree_->Branch("reco.passes_two_calorimeters",&sensitivity_.passes_two_calorimeters_);
   tree_->Branch("reco.passes_two_plus_calos",&sensitivity_.passes_two_plus_calos_);
   tree_->Branch("reco.passes_two_clusters",&sensitivity_.passes_two_clusters_);
   tree_->Branch("reco.passes_two_tracks",&sensitivity_.passes_two_tracks_);
   tree_->Branch("reco.passes_associated_calorimeters",&sensitivity_.passes_associated_calorimeters_);
+  
+  // Some basic counts
+  tree_->Branch("reco.calorimeter_hit_count",&sensitivity_.calorimeter_hit_count_);
+  tree_->Branch("reco.cluster_count",&sensitivity_.cluster_count_);
+  tree_->Branch("reco.track_count",&sensitivity_.track_count_);
+  tree_->Branch("reco.associated_track_count",&sensitivity_.associated_track_count_);
+  tree_->Branch("reco.small_cluster_count",&sensitivity_.small_cluster_count_);
+  
+  // Numbers of reconstructed particles
   tree_->Branch("reco.number_of_electrons",&sensitivity_.number_of_electrons_);
+  tree_->Branch("reco.electron_charges",&sensitivity_.electron_charges_);
   tree_->Branch("reco.number_of_gammas",&sensitivity_.number_of_gammas_);
+  tree_->Branch("reco.alpha_count",&sensitivity_.alpha_count_);
+  
+  // Energies
+  tree_->Branch("reco.total_calorimeter_energy",&sensitivity_.total_calorimeter_energy_);
   tree_->Branch("reco.higher_electron_energy",&sensitivity_.higher_electron_energy_);
   tree_->Branch("reco.lower_electron_energy",&sensitivity_.lower_electron_energy_);
   tree_->Branch("reco.electron_energies",&sensitivity_.electron_energies_);
-  tree_->Branch("reco.electron_charges",&sensitivity_.electron_charges_);
   tree_->Branch("reco.gamma_energies",&sensitivity_.gamma_energies_);
-
+  tree_->Branch("reco.highest_gamma_energy",&sensitivity_.highest_gamma_energy_);
+  
+  // Vertex positions (max 2 tracks)
   tree_->Branch("reco.first_vertex_x",&sensitivity_.first_vertex_x_);
   tree_->Branch("reco.first_vertex_y",&sensitivity_.first_vertex_y_);
   tree_->Branch("reco.first_vertex_z",&sensitivity_.first_vertex_z_);
@@ -64,9 +82,16 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("reco.vertex_separation",&sensitivity_.vertex_separation_);
   tree_->Branch("reco.foil_projection_separation",&sensitivity_.foil_projection_separation_);
   tree_->Branch("reco.projection_distance_xy",&sensitivity_.projection_distance_xy_);
-
-
   tree_->Branch("reco.vertices_on_foil",&sensitivity_.vertices_on_foil_);
+  tree_->Branch("reco.edgemost_vertex",&sensitivity_.edgemost_vertex_);
+  
+  // Topologies
+  tree_->Branch("reco.topology_1e1gamma",&sensitivity_.topology_1e1gamma_);
+  tree_->Branch("reco.topology_1e1alpha",&sensitivity_.topology_1e1alpha_);
+  tree_->Branch("reco.topology_1engamma",&sensitivity_.topology_1engamma_);
+  tree_->Branch("reco.topology_2e",&sensitivity_.topology_2e_);
+  
+  // Multi-track topology info
   tree_->Branch("reco.angle_between_tracks",&sensitivity_.angle_between_tracks_);
   tree_->Branch("reco.same_side_of_foil",&sensitivity_.same_side_of_foil_);
   tree_->Branch("reco.first_track_direction_x",&sensitivity_.first_track_direction_x_);
@@ -75,32 +100,19 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("reco.second_track_direction_x",&sensitivity_.second_track_direction_x_);
   tree_->Branch("reco.second_track_direction_y",&sensitivity_.second_track_direction_y_);
   tree_->Branch("reco.second_track_direction_z",&sensitivity_.second_track_direction_z_);
-
-  tree_->Branch("reco.calo_hit_time_separation",&sensitivity_.calo_hit_time_separation_);
-  tree_->Branch("reco.delayed_track_time",&sensitivity_.delayed_track_time_);
   tree_->Branch("reco.internal_probability",&sensitivity_.internal_probability_);
   tree_->Branch("reco.external_probability",&sensitivity_.external_probability_);
   tree_->Branch("reco.foil_projected_internal_probability",&sensitivity_.foil_projected_internal_probability_);
   tree_->Branch("reco.foil_projected_external_probability",&sensitivity_.foil_projected_external_probability_);
-  tree_->Branch("reco.topology_1e1gamma",&sensitivity_.topology_1e1gamma_);
-  tree_->Branch("reco.topology_1e1alpha",&sensitivity_.topology_1e1alpha_);
-  tree_->Branch("reco.topology_1engamma",&sensitivity_.topology_1engamma_);
-  tree_->Branch("reco.topology_2e",&sensitivity_.topology_2e_);
+  tree_->Branch("reco.calo_hit_time_separation",&sensitivity_.calo_hit_time_separation_);
 
-  tree_->Branch("reco.calorimeter_hit_count",&sensitivity_.calorimeter_hit_count_);
-  tree_->Branch("reco.cluster_count",&sensitivity_.cluster_count_);
-  tree_->Branch("reco.track_count",&sensitivity_.track_count_);
-  tree_->Branch("reco.associated_track_count",&sensitivity_.associated_track_count_);
-  tree_->Branch("reco.alpha_count",&sensitivity_.alpha_count_);
+  // Alpha finding
+  tree_->Branch("reco.delayed_track_time",&sensitivity_.delayed_track_time_);
   tree_->Branch("reco.delayed_cluster_hit_count",&sensitivity_.delayed_cluster_hit_count_);
   tree_->Branch("reco.foil_alpha_count",&sensitivity_.foil_alpha_count_);
   tree_->Branch("reco.alpha_track_length",&sensitivity_.alpha_track_length_);
   tree_->Branch("reco.proj_track_length_alpha",&sensitivity_.proj_track_length_alpha_);
-  tree_->Branch("reco.latest_delayed_hit",&sensitivity_.latest_delayed_hit_);
-  tree_->Branch("reco.small_cluster_count",&sensitivity_.small_cluster_count_);
-  tree_->Branch("reco.highest_gamma_energy",&sensitivity_.highest_gamma_energy_);
-  tree_->Branch("reco.edgemost_vertex",&sensitivity_.edgemost_vertex_);
-
+  
   // Calorimeter positions
   tree_->Branch("reco.electron_hits_mainwall",&sensitivity_.electron_hits_mainwall_);
   tree_->Branch("reco.electron_hits_xwall",&sensitivity_.electron_hits_xwall_);
@@ -465,7 +477,7 @@ SensitivityModule::process(datatools::things& workItem) {
           const snemo::datamodel::tracker_cluster & the_cluster = the_trajectory.get_cluster();
 
           // Alpha candidates are undefined charge particles associated with a delayed hit and no associated hit
-          if (track.get_charge()==snemo::datamodel::particle_track::UNDEFINED && !track.has_associated_calorimeter_hits() && the_cluster.is_delayed()>0) // ###### add check for delayed hit
+          if (track.get_charge()==snemo::datamodel::particle_track::UNDEFINED && !track.has_associated_calorimeter_hits() && the_cluster.is_delayed()>0)
           {
             alphaCandidates.push_back(track);
             trajClDelayedTime.push_back(the_cluster.get_hit(0).get_delayed_time());

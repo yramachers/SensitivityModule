@@ -116,7 +116,6 @@ typedef struct SensitivityEventStorage{
   int alpha_count_; // How many reconstructed alphas (ie delayed hits)?
   int foil_alpha_count_; //How many reconstructed alphas (ie delayed hits) that we think have a vertex on the foil?
   int delayed_cluster_hit_count_; //How many gieger hits in the alpha track
-  double latest_delayed_hit_; // Time of the latest delayed hit (if any)
   double small_cluster_count_; // How many clusters with 2 hits?
   double highest_gamma_energy_; // Highest energy gamma
   double edgemost_vertex_; // Y position of the foil vertex nearest the side of the detector
