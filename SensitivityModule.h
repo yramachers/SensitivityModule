@@ -91,9 +91,10 @@ typedef struct SensitivityEventStorage{
   double foil_projected_internal_probability_;
   double foil_projected_external_probability_;
 
-  double topology_1e1gamma_; // Does topology look like 1 electron, 1 gamma?
-  double topology_1engamma_; //  Does topology look like 1 electron, 1 or more gammas?
-  double topology_1e1alpha_; //  Does topology look like 1 electron, 1 alpha?
+  bool topology_1e1gamma_; // Does topology look like 1 electron, 1 gamma?
+  bool topology_1engamma_; //  Does topology look like 1 electron, 1 or more gammas?
+  bool topology_1e1alpha_; //  Does topology look like 1 electron, 1 alpha?
+  bool topology_1e_; // 1 electron and nothing else
 
   // For electrons and gammas, get the position of the earliest associated calorimeter hit
   // (for electrons we currently associate only 1 but gamma tracks can hit multiple calos

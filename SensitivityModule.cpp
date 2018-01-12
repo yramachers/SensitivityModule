@@ -90,6 +90,8 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("reco.topology_1e1alpha",&sensitivity_.topology_1e1alpha_);
   tree_->Branch("reco.topology_1engamma",&sensitivity_.topology_1engamma_);
   tree_->Branch("reco.topology_2e",&sensitivity_.topology_2e_);
+  tree_->Branch("reco.topology_1e",&sensitivity_.topology_1e_);
+
   
   // Multi-track topology info
   tree_->Branch("reco.angle_between_tracks",&sensitivity_.angle_between_tracks_);
@@ -156,6 +158,7 @@ SensitivityModule::process(datatools::things& workItem) {
   int firstVerticesOnFoil=0;
   double timeDelay=-1;
   bool is2electron=false;
+  bool is1electron=false;
   double internalProbability=-1;
   double internalChiSquared=-1;
   double externalChiSquared=-1;
@@ -497,6 +500,11 @@ SensitivityModule::process(datatools::things& workItem) {
       is1engamma = true;
       if (numberOfGammas==1) is1e1gamma = true;
     }
+    if (electronCandidates.size()==1 && numberOfGammas==0 && trackCount==1)
+    {
+      is1electron = true;
+    }
+    
     if (electronCandidates.size() ==1 && alphaCandidates.size() ==1)
     {
       is1e1alpha = true;
@@ -1051,6 +1059,8 @@ SensitivityModule::process(datatools::things& workItem) {
   sensitivity_.topology_1e1gamma_=is1e1gamma;
   sensitivity_.topology_1e1alpha_=is1e1alpha;
   sensitivity_.topology_2e_=is2electron;
+  sensitivity_.topology_1e_=is1electron;
+
 
   // Calorimeter walls: fractions of energy in each and vector of booleans
   // to say whether there are any hits in that wall
