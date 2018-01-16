@@ -29,6 +29,9 @@ $ cd build
 $ cmake -DCMAKE_PREFIX_PATH=<pathtoyourfalaiseinstall> ..
 ...
 $ make
+...
+... If you are developing the module, you can test it by doing ...
+$ make test
 ```
 
 The build will create the `libSensitivityModule` shared library plus the example `flreconstruct` pipeline
@@ -51,8 +54,9 @@ CMakeFiles                    cmake_install.cmake
 Makefile                      sensitivity.root
 ```
 
-The output file will always be called sensitivity.root so don’t run it multiple times concurrently in the same directory!
-Use the falaise flreconstruct pipeline instructions to see how to integrate this module in your pipeline.
+The output file will always be called `sensitivity.root` so don’t run it multiple times concurrently in the same directory
+or you will overwrite the previous file! Use the falaise flreconstruct pipeline instructions to see how to integrate this module in your pipeline.
+
 
 ## Output tuple structure - standard cuts
 
