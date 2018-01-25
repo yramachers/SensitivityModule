@@ -80,7 +80,8 @@ typedef struct SensitivityEventStorage{
 
   double projection_distance_xy_; // Distance between the end of the track and the foil projected vertex, in the xy plane (ie ignoring distance along wires - gives an indication of how many hits were missed). There are 2 tracks in a good event, and we want the longer of the two distances.
   int vertices_on_foil_; // How many tracks included a vertex on the foil?
-
+  std::vector<bool> electrons_from_foil_; // For each electron, is the vertex on the foil?
+  
   // For calculating probability of an  internal/external topology
   double calo_hit_time_separation_;
   bool topology_2e_; // Does it have a 2-electron-like topology?
@@ -94,6 +95,7 @@ typedef struct SensitivityEventStorage{
   bool topology_1e1gamma_; // Does topology look like 1 electron, 1 gamma?
   bool topology_1engamma_; //  Does topology look like 1 electron, 1 or more gammas?
   bool topology_1e1alpha_; //  Does topology look like 1 electron, 1 alpha?
+  bool topology_1e_; // 1 electron and nothing else
 
   // For electrons and gammas, get the position of the earliest associated calorimeter hit
   // (for electrons we currently associate only 1 but gamma tracks can hit multiple calos

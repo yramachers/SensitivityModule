@@ -136,6 +136,8 @@ or you will overwrite the previous file! Use the falaise flreconstruct pipeline 
 
 **reco.vertices_on_foil** : If 2 tracks: number of tracks with a vertex on the foil.
 
+**reco.electrons_from_foil** : Vector of booleans corresponding to the electron candidates in descending order of energy. True if the electron candidate has a vertex on the source foil, false if not.
+
 **reco.edgemost_vertex** : Absolute y position (in mm) of the vertex that is nearest to the edge of the detector in the y dimension. This could possibly be used with small cluster identification to find events near the edge of the detector who have two tracks, each associated with a calorimeter and with close vertices on the foil, but for one of which there are only 2 hits (because it is too near the edge to pass through 3 cells).
 
 ## Output tuple structure - topologies
@@ -148,6 +150,7 @@ or you will overwrite the previous file! Use the falaise flreconstruct pipeline 
 
 **reco.topology_2e** : True if event has a 2-electron topology (2 tracks with associated calorimeter hits, no gammas, no other tracks). False if not.
 
+**reco.topology_1e** : True if event has a 1-electron topology (1 track with associated calorimeter hits, no gammas, no other tracks). False if not.
 
 ## Output tuple structure - Multi-track topology info
 
@@ -170,7 +173,7 @@ reco.foil_projected_external_probability** : As internal and external probabilit
 
 **reco.delayed_track_time** : If a delayed track, the time of the first delayed hit in ns
 
-**reco.foil_alpha_count** : Not used yet
+**reco.foil_alpha_count** : Number of alphas with a vertex identified as being on the source foil
 
 **reco.delayed_cluster_hit_count** : Number of hits in the delayed cluster. Used to determine the correct
 metric for calculating the alpha track and alpha projected track lengths

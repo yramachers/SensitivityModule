@@ -83,6 +83,7 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("reco.foil_projection_separation",&sensitivity_.foil_projection_separation_);
   tree_->Branch("reco.projection_distance_xy",&sensitivity_.projection_distance_xy_);
   tree_->Branch("reco.vertices_on_foil",&sensitivity_.vertices_on_foil_);
+  tree_->Branch("reco.electrons_from_foil",&sensitivity_.electrons_from_foil_);
   tree_->Branch("reco.edgemost_vertex",&sensitivity_.edgemost_vertex_);
   
   // Topologies
@@ -90,6 +91,8 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("reco.topology_1e1alpha",&sensitivity_.topology_1e1alpha_);
   tree_->Branch("reco.topology_1engamma",&sensitivity_.topology_1engamma_);
   tree_->Branch("reco.topology_2e",&sensitivity_.topology_2e_);
+  tree_->Branch("reco.topology_1e",&sensitivity_.topology_1e_);
+
   
   // Multi-track topology info
   tree_->Branch("reco.angle_between_tracks",&sensitivity_.angle_between_tracks_);
@@ -156,6 +159,7 @@ SensitivityModule::process(datatools::things& workItem) {
   int firstVerticesOnFoil=0;
   double timeDelay=-1;
   bool is2electron=false;
+  bool is1electron=false;
   double internalProbability=-1;
   double internalChiSquared=-1;
   double externalChiSquared=-1;
@@ -199,6 +203,7 @@ SensitivityModule::process(datatools::things& workItem) {
   std::vector<double> gammaEnergies;
   std::vector<double> electronEnergies;
   std::vector<int> electronCharges;
+  std::vector<bool> electronsFromFoil;
 
   std::vector<int> electronCaloType; // will be translated to the vectors for each type at the end
   std::vector<int> gammaCaloType; // will be translated to the vectors for each type at the end
@@ -433,6 +438,11 @@ SensitivityModule::process(datatools::things& workItem) {
         // Electron candidates are tracks with associated calorimeter hits, is this one?
         if (track.has_associated_calorimeter_hits())
         {
+          // Check it isn't delayed - we are looking for prompt electrons
+          const snemo::datamodel::tracker_trajectory & the_trajectory = track.get_trajectory();
+          const snemo::datamodel::tracker_cluster & the_cluster = the_trajectory.get_cluster();
+          if (the_cluster.is_delayed()>0) continue;
+          
           electronCandidates.push_back(track);
           double thisEnergy=0;
           double thisXwallEnergy=0;
@@ -464,13 +474,31 @@ SensitivityModule::process(datatools::things& workItem) {
               firstHitType=hitType;
             }
           }
+          bool hasVertexOnFoil = false;
+          // Now check if it has a foil vertex
+          if (track.has_vertices()) // There doesn't seem to be any time ordering to the vertices
+          {
+            for (unsigned int iVertex=0; iVertex<track.get_vertices().size();++iVertex)
+            {
+              const geomtools::blur_spot & vertex = track.get_vertices().at(iVertex).get();
+              if (snemo::datamodel::particle_track::vertex_is_on_source_foil(vertex))
+              {
+                hasVertexOnFoil = true;
+              }
+            }
+          }
           int pos=InsertAndGetPosition(thisEnergy, electronEnergies, true); // Add energy to ordered list of gamma energies (highest first) and get where in the list it was added
 
           // Now add the type of the first hit to a vector
           InsertAt(firstHitType, electronCaloType, pos);
           // And the track charge: 1=undefined, 4=positive, 8=negative
           InsertAt((int)track.get_charge(),electronCharges,pos);
-        }
+          // And whether the track has a vertex on the foil
+          InsertAt(hasVertexOnFoil,electronsFromFoil,pos);
+          
+        } // End of electron candidates
+        
+        // Now look for alpha candidates
         if (track.has_trajectory())
         {
           const snemo::datamodel::tracker_trajectory & the_trajectory = track.get_trajectory();
@@ -482,6 +510,20 @@ SensitivityModule::process(datatools::things& workItem) {
             alphaCandidates.push_back(track);
             trajClDelayedTime.push_back(the_cluster.get_hit(0).get_delayed_time());
             delayedClusterHitCount = the_cluster.get_number_of_hits();
+            bool hasVertexOnFoil = false;
+            // Now check if it has a foil vertex
+            if (track.has_vertices()) // There doesn't seem to be any time ordering to the vertices
+            {
+              for (unsigned int iVertex=0; iVertex<track.get_vertices().size();++iVertex)
+              {
+                const geomtools::blur_spot & vertex = track.get_vertices().at(iVertex).get();
+                if (snemo::datamodel::particle_track::vertex_is_on_source_foil(vertex))
+                {
+                  hasVertexOnFoil = true;
+                }
+              }
+            }
+            if (hasVertexOnFoil) foilAlphaCount++; // We are just counting
           }
         }
 
@@ -497,6 +539,11 @@ SensitivityModule::process(datatools::things& workItem) {
       is1engamma = true;
       if (numberOfGammas==1) is1e1gamma = true;
     }
+    if (electronCandidates.size()==1 && numberOfGammas==0 && trackCount==1)
+    {
+      is1electron = true;
+    }
+    
     if (electronCandidates.size() ==1 && alphaCandidates.size() ==1)
     {
       is1e1alpha = true;
@@ -1004,7 +1051,9 @@ SensitivityModule::process(datatools::things& workItem) {
   sensitivity_.second_proj_vertex_z_= projectedVertexPosition[lowEnergyIndex].Z();
   sensitivity_.foil_projection_separation_= (projectedVertexPosition[0] - projectedVertexPosition[1]).Mag();
   sensitivity_.projection_distance_xy_=projectionDistanceXY;
-
+  sensitivity_.foil_alpha_count_=foilAlphaCount;
+  sensitivity_.electrons_from_foil_=electronsFromFoil;
+  
   // Vertex for other topologies
   if(is1e1alpha)
   {
@@ -1051,6 +1100,8 @@ SensitivityModule::process(datatools::things& workItem) {
   sensitivity_.topology_1e1gamma_=is1e1gamma;
   sensitivity_.topology_1e1alpha_=is1e1alpha;
   sensitivity_.topology_2e_=is2electron;
+  sensitivity_.topology_1e_=is1electron;
+
 
   // Calorimeter walls: fractions of energy in each and vector of booleans
   // to say whether there are any hits in that wall
