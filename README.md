@@ -34,6 +34,11 @@ $ make
 $ make test
 ```
 
+Note: if you get a QT5 error, you may need to specify the QT5 path when you run the cmake line, as given by `brew --prefix qt5-base`. For example, you can run:
+``` console
+$ cmake -DCMAKE_PREFIX_PATH="$(brew --prefix qt5-base);$(brew --prefix)" ..
+``` 
+
 The build will create the `libSensitivityModule` shared library plus the example `flreconstruct` pipeline
 script `SensitivityModuleExample.conf`. Assuming that you have an `input.brio` file that contains
 the `SD`, `CD`, `TCD`, `TTD` and `PTD` banks from the full reconstruction pipeline of `flreconstruct`
