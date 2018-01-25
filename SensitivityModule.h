@@ -80,7 +80,8 @@ typedef struct SensitivityEventStorage{
 
   double projection_distance_xy_; // Distance between the end of the track and the foil projected vertex, in the xy plane (ie ignoring distance along wires - gives an indication of how many hits were missed). There are 2 tracks in a good event, and we want the longer of the two distances.
   int vertices_on_foil_; // How many tracks included a vertex on the foil?
-
+  std::vector<bool> electrons_from_foil_; // For each electron, is the vertex on the foil?
+  
   // For calculating probability of an  internal/external topology
   double calo_hit_time_separation_;
   bool topology_2e_; // Does it have a 2-electron-like topology?
