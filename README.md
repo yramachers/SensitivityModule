@@ -9,22 +9,59 @@ SensitivityModule  is a Falaise pipeline module to process selected data from th
 
 ## Files:
 
-SensitivityModule.cpp
-
-SensitivityModule_template.conf
-
-SensitivityModule.h
-
-CMakeLists_template.txt
+- SensitivityModule.cpp
+- SensitivityModule.h
+- CMakeLists.txt
+- SensitivityModuleExample.conf.in
 
 
 ## Description
 
-Add to an flreconstruct pipeline to generate a ROOT ntuple file with some pertinent branches. SensitivityModule.conf gives an example of how I run it; in this case my input file would be something that had already been through the full flreconstruct pipeline (up to and including gamma clustering), and that includes SD, CD, TCD, TTD, PTD banks. The output file will always be called sensitivity.root so don’t run it multiple times concurrently in the same directory!
+Add to an flreconstruct pipeline to generate a ROOT ntuple file with some pertinent branches. To build it, do
 
-CMakeLists_template.txt (for Mac) or CMakeLists_template_linux.txt (works on UCL Scientific Linux machines) and SensitivityModule_template.conf are template files with hardcoded paths on Cheryl's computer. Copy them, remove underscore and template from the names and edit them to point at your own paths.
+``` console
+$ ls
+CMakeLists.txt                   SensitivityModule.h
+README.md                        SensitivityModuleExample.conf.in
+SensitivityModule.cpp
+$ mkdir build
+$ cd build
+$ cmake -DCMAKE_PREFIX_PATH=<pathtoyourfalaiseinstall> ..
+...
+$ make
+...
+... If you are developing the module, you can test it by doing ...
+$ make test
+```
 
-Use the falaise flreconstruct pipeline instructions to see how to build and integrate this module to your pipeline.
+Note: if you get a QT5 error, you may need to specify the QT5 path when you run the cmake line, as given by `brew --prefix qt5-base`. For example, you can run:
+``` console
+$ cmake -DCMAKE_PREFIX_PATH="$(brew --prefix qt5-base);$(brew --prefix)" ..
+``` 
+
+The build will create the `libSensitivityModule` shared library plus the example `flreconstruct` pipeline
+script `SensitivityModuleExample.conf`. Assuming that you have an `input.brio` file that contains
+the `SD`, `CD`, `TCD`, `TTD` and `PTD` banks from the full reconstruction pipeline of `flreconstruct`
+(up to and including gamma clustering), this can be run as:
+
+``` console
+... Assume we run in the build dir ...
+$ ls
+CMakeCache.txt                SensitivityModuleExample.conf
+CMakeFiles                    cmake_install.cmake
+Makefile
+...
+$ flreconstruct -i /path/to/input.brio -p SensitivityModuleExample.conf
+...
+$ ls
+CMakeCache.txt                SensitivityModuleExample.conf
+CMakeFiles                    cmake_install.cmake
+Makefile                      sensitivity.root
+```
+
+The output file will always be called `sensitivity.root` so don’t run it multiple times concurrently in the same directory
+or you will overwrite the previous file! Use the falaise flreconstruct pipeline instructions to see how to integrate this module in your pipeline.
+
 
 ## Output tuple structure - standard cuts
 
@@ -142,7 +179,7 @@ metric for calculating the alpha track and alpha projected track lengths
 
 **reco.proj_track_length_alpha** : Length in mm of delayed track when it is projected back to the back to the electron projected foil vertex. Again this calculation is different for delayed tracks with 1,2 or >2 hits. See code for more detail.
 
-## Output tuple structure - calorimeter positions 
+## Output tuple structure - calorimeter positions
 
 **reco.gamma_fractions_mainwall;
 reco.gamma_fractions_xwall;
