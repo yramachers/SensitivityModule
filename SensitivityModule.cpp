@@ -441,7 +441,7 @@ SensitivityModule::process(datatools::things& workItem) {
           // Check it isn't delayed - we are looking for prompt electrons
           const snemo::datamodel::tracker_trajectory & the_trajectory = track.get_trajectory();
           const snemo::datamodel::tracker_cluster & the_cluster = the_trajectory.get_cluster();
-          if (the_cluster.is_delayed()==0) continue;
+          if (the_cluster.is_delayed()>0) continue;
           
           electronCandidates.push_back(track);
           double thisEnergy=0;
