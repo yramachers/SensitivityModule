@@ -41,9 +41,10 @@ typedef struct SensitivityEventStorage{
   double total_calorimeter_energy_;
 
   double lower_electron_energy_; // MeV
-  double higher_electron_energy_;// MeVir
+  double higher_electron_energy_;// MeV
 
   std::vector<double> electron_energies_;
+  std::vector<double> electron_track_lengths_;
   std::vector<int> electron_charges_;
   std::vector<double> gamma_energies_;
   std::vector<double>* delayed_track_time_;
@@ -52,7 +53,8 @@ typedef struct SensitivityEventStorage{
   // Get vertex position of up to two tracks in mm
   double first_vertex_x_; // Foil is at x ~ 0, main calo walls are at +/- 434.994 mm according to flvisualize
   double first_vertex_y_; // y direction is horizontal, parallel to the foil, you can see it in top view
-  // Foil goes from roughly y = -2500 to 2500mm (look up the actual values), the where we get x-calo blocks
+  // Foil goes from roughly y = -2500 to 2500mm (look up the actual values), where we get x-calo blocks
+  // Note that the outer foils on each end are copper
   double first_vertex_z_; // z direction is vertical, parallel to the wires, you can see it in side view
   // edges of foil are about z= -1300 to 1300mm (don't have exact numbers right now)
   double second_vertex_x_;

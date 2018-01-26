@@ -154,6 +154,8 @@ or you will overwrite the previous file! Use the falaise flreconstruct pipeline 
 
 ## Output tuple structure - Multi-track topology info
 
+**reco.electron_track_lengths** : Vector of the lengths of electron tracks in mm, in descending order of energy. (Electron track is a prompt track with an associated calo hit)
+
 **reco.angle_between_tracks** : For 2-electron events: Angle between the initial momentum vectors of the two tracks. Does not require them to share a vertex (maybe it should). For 1-electron-n-gamma events, angle between the electron track and the highest-energy gamma “track”, if we assume that the gamma travels from the foil-most electron vertex to the centre of the calorimeter that it hits first.
 
 **reco.same_side_of_foil** : If 2 tracks: True if both tracks are on the same side of the foil, false if not

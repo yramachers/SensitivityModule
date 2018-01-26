@@ -95,6 +95,7 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
 
   
   // Multi-track topology info
+  tree_->Branch("reco.electron_track_lengths",&sensitivity_.electron_track_lengths_);
   tree_->Branch("reco.angle_between_tracks",&sensitivity_.angle_between_tracks_);
   tree_->Branch("reco.same_side_of_foil",&sensitivity_.same_side_of_foil_);
   tree_->Branch("reco.first_track_direction_x",&sensitivity_.first_track_direction_x_);
@@ -204,6 +205,7 @@ SensitivityModule::process(datatools::things& workItem) {
   std::vector<double> electronEnergies;
   std::vector<int> electronCharges;
   std::vector<bool> electronsFromFoil;
+  std::vector<double> electronTrackLengths;
 
   std::vector<int> electronCaloType; // will be translated to the vectors for each type at the end
   std::vector<int> gammaCaloType; // will be translated to the vectors for each type at the end
@@ -438,12 +440,14 @@ SensitivityModule::process(datatools::things& workItem) {
         // Electron candidates are tracks with associated calorimeter hits, is this one?
         if (track.has_associated_calorimeter_hits())
         {
+          double trackLength=0;
           // Check it isn't delayed - we are looking for prompt electrons
           const snemo::datamodel::tracker_trajectory & the_trajectory = track.get_trajectory();
           const snemo::datamodel::tracker_cluster & the_cluster = the_trajectory.get_cluster();
           if (the_cluster.is_delayed()>0) continue;
           
-          electronCandidates.push_back(track);
+          trackLength=the_trajectory.get_pattern().get_shape().get_length();
+          
           double thisEnergy=0;
           double thisXwallEnergy=0;
           double thisVetoEnergy=0;
@@ -489,12 +493,17 @@ SensitivityModule::process(datatools::things& workItem) {
           }
           int pos=InsertAndGetPosition(thisEnergy, electronEnergies, true); // Add energy to ordered list of gamma energies (highest first) and get where in the list it was added
 
+          // Add the track to the vector of electron candidates
+          InsertAt(track, electronCandidates, pos);
           // Now add the type of the first hit to a vector
           InsertAt(firstHitType, electronCaloType, pos);
           // And the track charge: 1=undefined, 4=positive, 8=negative
           InsertAt((int)track.get_charge(),electronCharges,pos);
           // And whether the track has a vertex on the foil
           InsertAt(hasVertexOnFoil,electronsFromFoil,pos);
+          // And track length
+          InsertAt(trackLength,electronTrackLengths,pos);
+
           
         } // End of electron candidates
         
@@ -1053,6 +1062,7 @@ SensitivityModule::process(datatools::things& workItem) {
   sensitivity_.projection_distance_xy_=projectionDistanceXY;
   sensitivity_.foil_alpha_count_=foilAlphaCount;
   sensitivity_.electrons_from_foil_=electronsFromFoil;
+  sensitivity_.electron_track_lengths_=electronTrackLengths;
   
   // Vertex for other topologies
   if(is1e1alpha)
