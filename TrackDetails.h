@@ -36,7 +36,7 @@ class TrackDetails{
   double vetoFraction_=0;
   int firstHitType_=-1;
   double energy_=0;
-  int charge_;
+  int charge_=1;
   bool makesTrack_=false;
 
   
