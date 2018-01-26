@@ -37,7 +37,7 @@ class TrackDetails{
   int firstHitType_=-1;
   double energy_=0;
   int charge_;
-  
+  bool makesTrack_=false;
 
   
 public:
@@ -56,6 +56,7 @@ public:
   bool IsElectron();
   bool IsNegativeElectron();
   bool IsPositron();
+  bool MakesTrack();
   
   // Charge
   int GetCharge();
@@ -89,6 +90,7 @@ public:
   double getProjectedVertexY();
   double getProjectedVertexZ();
   TVector3 getProjectedVertex();
+  
   
   
 };

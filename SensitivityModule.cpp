@@ -353,23 +353,12 @@ SensitivityModule::process(datatools::things& workItem) {
           InsertAt(trackDetails.GetXwallFraction(), gammaXwallFraction,pos);
           InsertAt(trackDetails.GetVetoFraction(), gammaVetoFraction,pos);
           InsertAt(track,gammaCandidates,pos);
-        }
-//        else trackCount++; // As it stands, everything except a gamma makes a track
-        
-        switch (track.get_charge())
-        {
-          case snemo::datamodel::particle_track::NEUTRAL:
-          {
-            continue;
-          }
-          case snemo::datamodel::particle_track::POSITIVE:
-          case snemo::datamodel::particle_track::NEGATIVE:
-          case snemo::datamodel::particle_track::UNDEFINED:
-          trackCount++;
-          break;
-          default:
           continue;
         }
+        
+        if (trackDetails.MakesTrack()) trackCount++;
+        else continue;
+
 
         // Now we have only charged particles remaining there are a few things we can do:
         // Identify electron candidates

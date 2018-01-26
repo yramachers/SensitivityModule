@@ -58,11 +58,17 @@ void TrackDetails::Initialize(snemo::datamodel::particle_track track)
       mainwallFraction_=thisMainWallEnergy/thisEnergy;
       xwallFraction_=thisXwallEnergy/thisEnergy;
       vetoFraction_=thisVetoEnergy/thisEnergy;
+      return;
     } // end case neutral (gammas)
-    
+    case snemo::datamodel::particle_track::POSITIVE:
+    case snemo::datamodel::particle_track::NEGATIVE:
+    case snemo::datamodel::particle_track::UNDEFINED:
+    makesTrack_=true;
+    break;
     default:
     {
       particleType_=UNKNOWN;
+      return;
     }
   }//end switch
 } // end Initialize
@@ -112,4 +118,7 @@ bool TrackDetails::HitGammaVeto()
 {
   return (firstHitType_ == GVETO);
 }
-
+bool TrackDetails::MakesTrack()
+{
+  return makesTrack_;
+}
