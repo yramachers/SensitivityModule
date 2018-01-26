@@ -30,6 +30,9 @@
 #include "falaise/snemo/datamodels/tracker_clustering_solution.h"
 #include "falaise/snemo/datamodels/particle_track_data.h"
 
+// From this application
+#include "TrackDetails.h"
+
 typedef struct SensitivityEventStorage{
   bool passes_two_calorimeters_;
   bool passes_two_plus_calos_;
@@ -174,3 +177,5 @@ class SensitivityModule : public dpp::base_module {
   DPP_MODULE_REGISTRATION_INTERFACE(SensitivityModule);
 };
 #endif // TESTMODULE_HH
+
+

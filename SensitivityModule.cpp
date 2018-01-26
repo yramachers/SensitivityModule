@@ -30,7 +30,7 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
                 std::runtime_error,
                 "Null pointer to geometry manager return by geometry_service");
   }
-
+ 
  // Use the method of PTD2ROOT to create a root file with just the branches we need for the sensitivity analysis
 
   hfile_ = new TFile("sensitivity.root","RECREATE","Output file of Simulation data");
@@ -339,54 +339,27 @@ SensitivityModule::process(datatools::things& workItem) {
       {
 
         snemo::datamodel::particle_track track=trackData.get_particle(iParticle);
+        TrackDetails trackDetails(track);
+        
+        // Populate info for gammas
+        if (trackDetails.IsGamma())
+        {
+          numberOfGammas++;
+          int pos=InsertAndGetPosition(trackDetails.GetEnergy(), gammaEnergies, true); // Add energy to ordered list of gamma energies (highest first) and get where in the list it was added
+          // Now add the type of the first hit to a vector
+          InsertAt(trackDetails.GetFirstHitType(), gammaCaloType, pos);
+          // And the fraction of the energy deposited in each wall
+          InsertAt(trackDetails.GetMainwallFraction(), gammaMainwallFraction,pos);
+          InsertAt(trackDetails.GetXwallFraction(), gammaXwallFraction,pos);
+          InsertAt(trackDetails.GetVetoFraction(), gammaVetoFraction,pos);
+          InsertAt(track,gammaCandidates,pos);
+        }
+//        else trackCount++; // As it stands, everything except a gamma makes a track
+        
         switch (track.get_charge())
         {
           case snemo::datamodel::particle_track::NEUTRAL:
           {
-            gammaCandidates.push_back(track);
-            numberOfGammas++;
-            double thisEnergy=0;
-            double thisXwallEnergy=0;
-            double thisVetoEnergy=0;
-            double thisMainWallEnergy=0;
-            // Store the gamma candidate energies
-            double firstHitTime=-1.;
-            int firstHitType=0;
-            // Store the gamma candidate energies
-            for (unsigned int hit=0; hit<track.get_associated_calorimeter_hits().size();++hit)
-            {
-
-              const snemo::datamodel::calibrated_calorimeter_hit & calo_hit = track.get_associated_calorimeter_hits().at(hit).get();
-              double thisHitEnergy=calo_hit.get_energy();
-              thisEnergy +=  thisHitEnergy;
-              int hitType=calo_hit.get_geom_id().get_type();
-              if (hitType==mainWallHitType)
-                thisMainWallEnergy+= thisHitEnergy;
-              else if (hitType==xWallHitType)
-                thisXwallEnergy+= thisHitEnergy;
-              else if (hitType==gammaVetoHitType)
-                thisVetoEnergy+= thisHitEnergy;
-              else cout<<"WARNING: Unknown calorimeter type "<<hitType<<endl;
-
-              // Get the coordinates of the hit with the earliest time
-              if (firstHitTime==-1 || calo_hit.get_time()<firstHitTime)
-              {
-                firstHitTime=calo_hit.get_time();
-                // Find out which calo wall
-                firstHitType=hitType;
-              }
-            }
-
-            // Order the energies etc
-            int pos=InsertAndGetPosition(thisEnergy, gammaEnergies, true); // Add energy to ordered list of gamma energies (highest first) and get where in the list it was added
-
-            // Now add the type of the first hit to a vector
-            InsertAt(firstHitType, gammaCaloType, pos);
-            // And the fraction of the energy deposited in each wall
-            InsertAt(thisMainWallEnergy/thisEnergy, gammaMainwallFraction,pos);
-            InsertAt(thisXwallEnergy/thisEnergy, gammaXwallFraction,pos);
-            InsertAt(thisVetoEnergy/thisEnergy, gammaVetoFraction,pos);
-
             continue;
           }
           case snemo::datamodel::particle_track::POSITIVE:
@@ -1247,3 +1220,79 @@ void SensitivityModule::reset() {
   delete hfile_;
   this->_set_initialized(false);
 }
+
+
+
+
+////###################
+//
+//TrackDetails::TrackDetails()
+//{};
+//
+//TrackDetails::TrackDetails(snemo::datamodel::particle_track track)
+//{
+//  //this->Initialize(track);
+//}
+//
+//void TrackDetails::Initialize(snemo::datamodel::particle_track track)
+//{
+//  // Populate everything you can
+//  switch (track.get_charge())
+//  {
+//    case snemo::datamodel::particle_track::NEUTRAL:
+//    {
+//      particleType_=GAMMA;
+//      //      double thisEnergy=0;
+//      //      double thisXwallEnergy=0;
+//      //      double thisVetoEnergy=0;
+//      //      double thisMainWallEnergy=0;
+//      //
+//      //      // Store the gamma candidate energies
+//      //      double firstHitTime=-1.;
+//      //      int firstHitType=0;
+//      //      // Store the gamma candidate energies
+//      //      for (unsigned int hit=0; hit<track.get_associated_calorimeter_hits().size();++hit)
+//      //      {
+//      //
+//      //        const snemo::datamodel::calibrated_calorimeter_hit & calo_hit = track.get_associated_calorimeter_hits().at(hit).get();
+//      //        double thisHitEnergy=calo_hit.get_energy();
+//      //        thisEnergy +=  thisHitEnergy;
+//      //        int hitType=calo_hit.get_geom_id().get_type();
+//      //        if (hitType==mainWallHitType)
+//      //        thisMainWallEnergy+= thisHitEnergy;
+//      //        else if (hitType==xWallHitType)
+//      //        thisXwallEnergy+= thisHitEnergy;
+//      //        else if (hitType==gammaVetoHitType)
+//      //        thisVetoEnergy+= thisHitEnergy;
+//      //        else cout<<"WARNING: Unknown calorimeter type "<<hitType<<endl;
+//      //
+//      //        // Get the coordinates of the hit with the earliest time
+//      //        if (firstHitTime==-1 || calo_hit.get_time()<firstHitTime)
+//      //        {
+//      //          firstHitTime=calo_hit.get_time();
+//      //          // Find out which calo wall
+//      //          firstHitType=hitType;
+//      //        }
+//      //      }
+//      //
+//      //      // Order the energies etc
+//      //      energy_=thisEnergy;
+//      //
+//      //      firstHitType_=firstHitType;
+//      //      // And the fraction of the energy deposited in each wall
+//      //      mainwallFraction_=thisMainWallEnergy/thisEnergy;
+//      //      xwallFraction_=thisXwallEnergy/thisEnergy;
+//      //      vetoFraction_=thisVetoEnergy/thisEnergy;
+//    } // end case neutral (gammas)
+//    
+//    default:
+//    {
+//      particleType_=UNKNOWN;
+//    }
+//  }//end switch
+//} // end Initialize
+//
+//bool TrackDetails::IsGamma()
+//{
+//  return (particleType_==GAMMA);
+//}
