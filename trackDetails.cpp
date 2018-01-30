@@ -12,9 +12,16 @@ TrackDetails::TrackDetails(snemo::datamodel::particle_track track)
 
 void TrackDetails::Initialize(snemo::datamodel::particle_track track)
 {
-  
+  track_=track;
+  hasTrack_=true;
+  this->Initialize();
+}
+
+bool TrackDetails::Initialize()
+{
+  if (!hasTrack_) return false;
   // Populate everything you can
-  switch (track.get_charge())
+  switch (track_.get_charge())
   {
     case snemo::datamodel::particle_track::NEUTRAL:
     {
@@ -29,10 +36,10 @@ void TrackDetails::Initialize(snemo::datamodel::particle_track track)
       int firstHitType=0;
       // Store the gamma candidate energies
       // There could be multiple hits for a gamma so we need to add them up
-      for (unsigned int hit=0; hit<track.get_associated_calorimeter_hits().size();++hit)
+      for (unsigned int hit=0; hit<track_.get_associated_calorimeter_hits().size();++hit)
       {
         
-        const snemo::datamodel::calibrated_calorimeter_hit & calo_hit = track.get_associated_calorimeter_hits().at(hit).get();
+        const snemo::datamodel::calibrated_calorimeter_hit & calo_hit = track_.get_associated_calorimeter_hits().at(hit).get();
         double thisHitEnergy=calo_hit.get_energy();
         // Sum the energies
         thisEnergy +=  thisHitEnergy;
@@ -62,7 +69,7 @@ void TrackDetails::Initialize(snemo::datamodel::particle_track track)
       mainwallFraction_=thisMainWallEnergy/thisEnergy;
       xwallFraction_=thisXwallEnergy/thisEnergy;
       vetoFraction_=thisVetoEnergy/thisEnergy;
-      return;
+      return true;
     } // end case neutral (gammas)
     
     // Any of these will make a track
@@ -74,38 +81,36 @@ void TrackDetails::Initialize(snemo::datamodel::particle_track track)
     default:
     {
       particleType_=UNKNOWN; // Nothing we can do here so we are done
-      return;
+      return false;
     }
   }//end switch
-  
-  
   
   // Now we have only charged particles remaining there are a few things we can do:
   // Identify electron candidates
   // Identify alpha candidates
   // Get edgemost inner vertex, regardless of whether they have associated calorimeters etc
 
-  if (!track.has_trajectory())
+  if (!track_.has_trajectory())
   {
     particleType_=UNKNOWN;
-    return;
+    return false;
   }
   
-  const snemo::datamodel::tracker_trajectory & the_trajectory = track.get_trajectory();
+  const snemo::datamodel::tracker_trajectory & the_trajectory = track_.get_trajectory();
   const snemo::datamodel::tracker_cluster & the_cluster = the_trajectory.get_cluster();
     
   // ALPHA candidates are undefined charge particles associated with a delayed hit and no associated hit
-  if (track.get_charge()==snemo::datamodel::particle_track::UNDEFINED && !track.has_associated_calorimeter_hits() && the_cluster.is_delayed()>0)
+  if (track_.get_charge()==snemo::datamodel::particle_track::UNDEFINED && !track_.has_associated_calorimeter_hits() && the_cluster.is_delayed()>0)
   {
     particleType_=ALPHA;
   }
   // ELECTRON candidates are prompt and have an associated calorimeter hit. No charge requirement as yet
-  else if (the_cluster.is_delayed()<=0 && track.has_associated_calorimeter_hits())
+  else if (the_cluster.is_delayed()<=0 && track_.has_associated_calorimeter_hits())
   {
     particleType_=ELECTRON;
-    charge_=track.get_charge();
+    charge_=track_.get_charge();
   }
-  
+  return true;
 } // end Initialize
 
 

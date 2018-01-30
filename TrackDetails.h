@@ -38,8 +38,9 @@ class TrackDetails{
   double energy_=0;
   int charge_=1;
   bool makesTrack_=false;
-
-  
+  snemo::datamodel::particle_track track_;
+  bool hasTrack_=false;
+  bool CheckFoilmostVertex(snemo::datamodel::particle_track track);
 public:
 
   // SuperNEMO constants
@@ -50,6 +51,7 @@ public:
   TrackDetails();
   TrackDetails(snemo::datamodel::particle_track track);
   void Initialize(snemo::datamodel::particle_track track);
+  bool Initialize();
 
   bool IsGamma();
   bool IsAlpha();
