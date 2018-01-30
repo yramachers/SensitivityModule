@@ -374,70 +374,87 @@ SensitivityModule::process(datatools::things& workItem) {
         if (trackDetails.HasFoilVertex())verticesOnFoil++;
         
         // For all the tracks in the event, which one has its foilmost vertex nearest the tunnel/mountain edge of the foil?
-        if(TMath::Abs(trackDetails.GetFoilmostVertexY()) > edgemostVertex) edgemostVertex = trackDetails.GetFoilmostVertexY();
+        double thisY = trackDetails.GetFoilmostVertexY();
+        if (TMath::Abs(thisY) > TMath::Abs(edgemostVertex)) edgemostVertex = thisY;
         
-        // Electron candidates are tracks with associated calorimeter hits, is this one?
-        if (track.has_associated_calorimeter_hits())
+        // For electron candidates, we need to store the energies
+        if (trackDetails.IsElectron())
         {
-          // Check it isn't delayed - we are looking for prompt electrons
-          const snemo::datamodel::tracker_trajectory & the_trajectory = track.get_trajectory();
-          const snemo::datamodel::tracker_cluster & the_cluster = the_trajectory.get_cluster();
-          if (the_cluster.is_delayed()>0) continue;
-          
-          electronCandidates.push_back(track);
-          double thisEnergy=0;
-          double thisXwallEnergy=0;
-          double thisVetoEnergy=0;
-          double thisMainWallEnergy=0;
-          double firstHitTime=-1.;
-          int firstHitType=0;
-          // Store the electron candidate energies
-          for (unsigned int hit=0; hit<track.get_associated_calorimeter_hits().size();++hit)
-          {
-
-            const snemo::datamodel::calibrated_calorimeter_hit & calo_hit = track.get_associated_calorimeter_hits().at(hit).get();
-            double thisHitEnergy=calo_hit.get_energy();
-            thisEnergy +=  thisHitEnergy;
-            int hitType=calo_hit.get_geom_id().get_type();
-            if (hitType==mainWallHitType)
-              thisMainWallEnergy+= thisHitEnergy;
-            else if (hitType==xWallHitType)
-              thisXwallEnergy+= thisHitEnergy;
-            else if (hitType==gammaVetoHitType)
-              thisVetoEnergy+= thisHitEnergy;
-            else cout<<"WARNING: Unknown calorimeter type "<<hitType<<endl;
-
-            // Get the coordinates of the hit with the earliest time
-            if (firstHitTime==-1 || calo_hit.get_time()<firstHitTime)
-            {
-              firstHitTime=calo_hit.get_time();
-              // Find out which calo wall
-              firstHitType=hitType;
-            }
-          }
-          bool hasVertexOnFoil = false;
-          // Now check if it has a foil vertex
-          if (track.has_vertices()) // There doesn't seem to be any time ordering to the vertices
-          {
-            for (unsigned int iVertex=0; iVertex<track.get_vertices().size();++iVertex)
-            {
-              const geomtools::blur_spot & vertex = track.get_vertices().at(iVertex).get();
-              if (snemo::datamodel::particle_track::vertex_is_on_source_foil(vertex))
-              {
-                hasVertexOnFoil = true;
-              }
-            }
-          }
-          int pos=InsertAndGetPosition(thisEnergy, electronEnergies, true); // Add energy to ordered list of gamma energies (highest first) and get where in the list it was added
-
-          // Now add the type of the first hit to a vector
-          InsertAt(firstHitType, electronCaloType, pos);
-          // And the track charge: 1=undefined, 4=positive, 8=negative
-          InsertAt((int)track.get_charge(),electronCharges,pos);
-          // And whether the track has a vertex on the foil
-          InsertAt(hasVertexOnFoil,electronsFromFoil,pos);
-          
-        } // End of electron candidates
+          int pos=InsertAndGetPosition(trackDetails.GetEnergy(), electronEnergies, true);
+          // Add energy to ordered list of electron energies (highest first)
+          // and get where in the list it was added
+          // Now add the type of the first hit to a vector (electrons are currently only allowed one hit)
+          // If we allow clustered hits for an electron, we can easily add it in this framework
+          InsertAt(trackDetails.GetFirstHitType(), electronCaloType, pos);
+          // Vector of electron candidates is ordered
+          InsertAt(track,electronCandidates,pos);
+          // And we also want a vector of electron charges (they might be positrons)
+          InsertAt(trackDetails.GetCharge(),electronCharges,pos);
+          InsertAt(trackDetails.HasFoilVertex(),electronsFromFoil,pos);
+        }
+        
+//        // Electron candidates are tracks with associated calorimeter hits, is this one?
+//        if (track.has_associated_calorimeter_hits())
+//        {
+//          // Check it isn't delayed - we are looking for prompt electrons
+//          const snemo::datamodel::tracker_trajectory & the_trajectory = track.get_trajectory();
+//          const snemo::datamodel::tracker_cluster & the_cluster = the_trajectory.get_cluster();
+//          if (the_cluster.is_delayed()>0) continue;
+//
+//          //electronCandidates.push_back(track);
+//          double thisEnergy=0;
+//          double thisXwallEnergy=0;
+//          double thisVetoEnergy=0;
+//          double thisMainWallEnergy=0;
+//          double firstHitTime=-1.;
+//          int firstHitType=0;
+//          // Store the electron candidate energies
+//          for (unsigned int hit=0; hit<track.get_associated_calorimeter_hits().size();++hit)
+//          {
+//
+//            const snemo::datamodel::calibrated_calorimeter_hit & calo_hit = track.get_associated_calorimeter_hits().at(hit).get();
+//            double thisHitEnergy=calo_hit.get_energy();
+//            thisEnergy +=  thisHitEnergy;
+//            int hitType=calo_hit.get_geom_id().get_type();
+//            if (hitType==mainWallHitType)
+//              thisMainWallEnergy+= thisHitEnergy;
+//            else if (hitType==xWallHitType)
+//              thisXwallEnergy+= thisHitEnergy;
+//            else if (hitType==gammaVetoHitType)
+//              thisVetoEnergy+= thisHitEnergy;
+//            else cout<<"WARNING: Unknown calorimeter type "<<hitType<<endl;
+//
+//            // Get the coordinates of the hit with the earliest time
+//            if (firstHitTime==-1 || calo_hit.get_time()<firstHitTime)
+//            {
+//              firstHitTime=calo_hit.get_time();
+//              // Find out which calo wall
+//              firstHitType=hitType;
+//            }
+//          }
+//          bool hasVertexOnFoil = false;
+//          // Now check if it has a foil vertex
+//          if (track.has_vertices()) // There doesn't seem to be any time ordering to the vertices
+//          {
+//            for (unsigned int iVertex=0; iVertex<track.get_vertices().size();++iVertex)
+//            {
+//              const geomtools::blur_spot & vertex = track.get_vertices().at(iVertex).get();
+//              if (snemo::datamodel::particle_track::vertex_is_on_source_foil(vertex))
+//              {
+//                hasVertexOnFoil = true;
+//              }
+//            }
+//          }
+//          int pos=InsertAndGetPosition(thisEnergy, electronEnergies, true); // Add energy to ordered list of gamma energies (highest first) and get where in the list it was added
+//
+//          // Now add the type of the first hit to a vector
+//          InsertAt(firstHitType, electronCaloType, pos);
+//          // And the track charge: 1=undefined, 4=positive, 8=negative
+//          InsertAt((int)track.get_charge(),electronCharges,pos);
+//          // And whether the track has a vertex on the foil
+//          InsertAt(hasVertexOnFoil,electronsFromFoil,pos);
+//
+//        } // End of electron candidates
         
         // Now look for alpha candidates
         if (track.has_trajectory())

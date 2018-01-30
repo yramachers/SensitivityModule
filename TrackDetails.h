@@ -43,6 +43,7 @@ class TrackDetails{
   bool SetFoilmostVertex();
   bool SetDirection();
   bool SetProjectedVertex();
+  bool PopulateCaloHits();
 public:
 
   // SuperNEMO constants

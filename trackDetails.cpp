@@ -24,56 +24,57 @@ void TrackDetails::Initialize(snemo::datamodel::particle_track track)
 bool TrackDetails::Initialize()
 {
   if (!hasTrack_) return false; // You can't get the track details unless there is a track
-  
+  charge_=(int)track_.get_charge();
   // Populate everything you can about the track
-  switch (track_.get_charge())
+  switch (charge_)
   {
     case snemo::datamodel::particle_track::NEUTRAL:
     {
       particleType_=GAMMA;
-      double thisEnergy=0;
-      double thisXwallEnergy=0;
-      double thisVetoEnergy=0;
-      double thisMainWallEnergy=0;
-      
-      // Store the gamma candidate energies
-      double firstHitTime=-1.;
-      int firstHitType=0;
-      // Store the gamma candidate energies
-      // There could be multiple hits for a gamma so we need to add them up
-      for (unsigned int hit=0; hit<track_.get_associated_calorimeter_hits().size();++hit)
-      {
-        
-        const snemo::datamodel::calibrated_calorimeter_hit & calo_hit = track_.get_associated_calorimeter_hits().at(hit).get();
-        double thisHitEnergy=calo_hit.get_energy();
-        // Sum the energies
-        thisEnergy +=  thisHitEnergy;
-        
-        // We want to know what fraction of the energy was deposited in each calo wall
-        int hitType=calo_hit.get_geom_id().get_type();
-        if (hitType==MAINWALL)
-        thisMainWallEnergy+= thisHitEnergy;
-        else if (hitType==XWALL)
-        thisXwallEnergy+= thisHitEnergy;
-        else if (hitType==GVETO)
-        thisVetoEnergy+= thisHitEnergy;
-        else cout<<"WARNING: Unknown calorimeter type "<<hitType<<endl;
-        
-        // Get the coordinates of the hit with the earliest time
-        if (firstHitTime==-1 || calo_hit.get_time()<firstHitTime)
-        {
-          firstHitTime=calo_hit.get_time();
-          // Find out which calo wall it hit first
-          firstHitType=hitType;
-        }
-      }
-
-      energy_=thisEnergy;
-      firstHitType_=firstHitType;
-      // And the fraction of the energy deposited in each wall
-      mainwallFraction_=thisMainWallEnergy/thisEnergy;
-      xwallFraction_=thisXwallEnergy/thisEnergy;
-      vetoFraction_=thisVetoEnergy/thisEnergy;
+      PopulateCaloHits();
+//      double thisEnergy=0;
+//      double thisXwallEnergy=0;
+//      double thisVetoEnergy=0;
+//      double thisMainWallEnergy=0;
+//
+//      // Store the gamma candidate energies
+//      double firstHitTime=-1.;
+//      int firstHitType=0;
+//      // Store the gamma candidate energies
+//      // There could be multiple hits for a gamma so we need to add them up
+//      for (unsigned int hit=0; hit<track_.get_associated_calorimeter_hits().size();++hit)
+//      {
+//
+//        const snemo::datamodel::calibrated_calorimeter_hit & calo_hit = track_.get_associated_calorimeter_hits().at(hit).get();
+//        double thisHitEnergy=calo_hit.get_energy();
+//        // Sum the energies
+//        thisEnergy +=  thisHitEnergy;
+//
+//        // We want to know what fraction of the energy was deposited in each calo wall
+//        int hitType=calo_hit.get_geom_id().get_type();
+//        if (hitType==MAINWALL)
+//        thisMainWallEnergy+= thisHitEnergy;
+//        else if (hitType==XWALL)
+//        thisXwallEnergy+= thisHitEnergy;
+//        else if (hitType==GVETO)
+//        thisVetoEnergy+= thisHitEnergy;
+//        else cout<<"WARNING: Unknown calorimeter type "<<hitType<<endl;
+//
+//        // Get the coordinates of the hit with the earliest time
+//        if (firstHitTime==-1 || calo_hit.get_time()<firstHitTime)
+//        {
+//          firstHitTime=calo_hit.get_time();
+//          // Find out which calo wall it hit first
+//          firstHitType=hitType;
+//        }
+//      }
+//
+//      energy_=thisEnergy;
+//      firstHitType_=firstHitType;
+//      // And the fraction of the energy deposited in each wall
+//      mainwallFraction_=thisMainWallEnergy/thisEnergy;
+//      xwallFraction_=thisXwallEnergy/thisEnergy;
+//      vetoFraction_=thisVetoEnergy/thisEnergy;
       return true;
     } // end case neutral (gammas)
     
@@ -114,12 +115,61 @@ bool TrackDetails::Initialize()
   {
     particleType_=ELECTRON;
     charge_=track_.get_charge();
+    PopulateCaloHits(); // As it has an associated hit, we can calculate the hit fractions
   }
   
   vertexOnFoil_ = SetFoilmostVertex();
   if (SetDirection()) SetProjectedVertex(); // Can't project if no direction!
   return true;
 } // end Initialize
+
+bool TrackDetails::PopulateCaloHits()
+{
+  if ( !hasTrack_) return false;
+  double thisEnergy=0;
+  double thisXwallEnergy=0;
+  double thisVetoEnergy=0;
+  double thisMainWallEnergy=0;
+  double firstHitTime=-1.;
+  int firstHitType=0;
+  // Store the gamma candidate energies
+  // There could be multiple hits for a gamma so we need to add them up
+  for (unsigned int hit=0; hit<track_.get_associated_calorimeter_hits().size();++hit)
+  {
+    
+    const snemo::datamodel::calibrated_calorimeter_hit & calo_hit = track_.get_associated_calorimeter_hits().at(hit).get();
+    double thisHitEnergy=calo_hit.get_energy();
+    // Sum the energies
+    thisEnergy +=  thisHitEnergy;
+    
+    // We want to know what fraction of the energy was deposited in each calo wall
+    int hitType=calo_hit.get_geom_id().get_type();
+    if (hitType==MAINWALL)
+      thisMainWallEnergy+= thisHitEnergy;
+    else if (hitType==XWALL)
+      thisXwallEnergy+= thisHitEnergy;
+    else if (hitType==GVETO)
+      thisVetoEnergy+= thisHitEnergy;
+    else cout<<"WARNING: Unknown calorimeter type "<<hitType<<endl;
+    
+    // Get the coordinates of the hit with the earliest time
+    if (firstHitTime==-1 || calo_hit.get_time()<firstHitTime)
+    {
+      firstHitTime=calo_hit.get_time();
+      // Find out which calo wall it hit first
+      firstHitType=hitType;
+    }
+  }
+  
+  energy_=thisEnergy;
+  firstHitType_=firstHitType;
+  // And the fraction of the energy deposited in each wall
+  mainwallFraction_=thisMainWallEnergy/thisEnergy;
+  xwallFraction_=thisXwallEnergy/thisEnergy;
+  vetoFraction_=thisVetoEnergy/thisEnergy;
+  return true;
+}
+
 
 
 // Return true if vertex is on the foil
