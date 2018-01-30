@@ -115,6 +115,9 @@ bool TrackDetails::Initialize()
     particleType_=ELECTRON;
     charge_=track_.get_charge();
   }
+  
+  vertexOnFoil_ = SetFoilmostVertex();
+  if (SetDirection()) SetProjectedVertex(); // Can't project if no direction!
   return true;
 } // end Initialize
 

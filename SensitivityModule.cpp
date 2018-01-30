@@ -369,34 +369,13 @@ SensitivityModule::process(datatools::things& workItem) {
         // Find the y coordinate for the innermost vertex that is nearest to
         // the x-calo wall (large +/- y value). We could use this to identify
         // Events so near the edge they can't make a 3-cell track
-        double thisInnerVertex=0; // stores the y coordinate of the vertex closest to the source foil
-        double closestX=9999;
-        bool hasVertexOnFoil=false;
-        if (track.has_vertices()) // There doesn't seem to be any time ordering to the vertices
-        {
-          for (unsigned int iVertex=0; iVertex<track.get_vertices().size();++iVertex)
-          {
-            const geomtools::blur_spot & vertex = track.get_vertices().at(iVertex).get();
-            if (snemo::datamodel::particle_track::vertex_is_on_source_foil(vertex))
-            {
-              hasVertexOnFoil = true;
-            }
-            const geomtools::vector_3d & vertexTranslation = vertex.get_placement().get_translation();
-            // Get details for the vertex nearest the source foil, which is at x = 0
-            if (TMath::Abs(vertexTranslation.x()) < closestX) // this is nearer the foil
-            {
-              // So get its y position, which will tell us how near the xcalo wall it is
-              // Note there might be another vertex nearer the wall (the far end of the track) but we don't care, we want to know where the foil vertex is
-              thisInnerVertex=vertexTranslation.y();
-              closestX=vertexTranslation.x();
-            } // end for each vertex
-          }
-          // For the event, we are going to note the foil vertex that is nearest the edge of the detector
-          if(TMath::Abs(thisInnerVertex) > TMath::Abs(edgemostVertex))
-          edgemostVertex=thisInnerVertex;
-          if (hasVertexOnFoil) verticesOnFoil++;
-        } // End of scanning for the edgemost vertex
 
+        // Count the number of vertices on the foil
+        if (trackDetails.HasFoilVertex())verticesOnFoil++;
+        
+        // For all the tracks in the event, which one has its foilmost vertex nearest the tunnel/mountain edge of the foil?
+        if(TMath::Abs(trackDetails.GetFoilmostVertexY()) > edgemostVertex) edgemostVertex = trackDetails.GetFoilmostVertexY();
+        
         // Electron candidates are tracks with associated calorimeter hits, is this one?
         if (track.has_associated_calorimeter_hits())
         {
