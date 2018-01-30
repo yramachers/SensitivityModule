@@ -114,9 +114,9 @@ or you will overwrite the previous file! Use the falaise flreconstruct pipeline 
 
 ## Output tuple structure - Vertex positions (max 2 tracks)
 
-**reco.first_vertex_x** : If there are two tracks, vertex x position of an arbitrary “first” track. Foil is at x ~ 0, main calo walls are at +/- 434.994 mm according to flvisualize. Unit is mm.
+**reco.first_vertex_x** : If there are two tracks, vertex x position of an arbitrary “first” track. Foil is at x ~ 0, main calo walls are at +/- 434.994 mm according to flvisualize. X direction is Italy to France. Unit is mm.
 
-**reco.first_vertex_y** : If there are two tracks, vertex y position of an arbitrary “first” track. The y direction is horizontal, parallel to the foil, you can see it in top view. Unit is mm.
+**reco.first_vertex_y** : If there are two tracks, vertex y position of an arbitrary “first” track. The y direction is horizontal, parallel to the foil, you can see it in top view (Tunnel to mountain). Unit is mm. X-wall is at +/- 2505.494 according to flvisualize. Unit is mm.
 
 **reco.first_vertex_z** : If there are two tracks, vertex z position of an arbitrary “first” track. The z direction is vertical, parallel to the wires, you can see it in side view. Unit is mm.
 
@@ -214,10 +214,10 @@ Vectors corresponding to each reconstructed electron in the event, starting from
 
 **true.vertex_z** : Z coordinate of the true event vertex (generator level, from SD bank).  The z direction is vertical, parallel to the wires, you can see it in side view. Unit is mm.
 
-**true.higher_particle_type** : The particle type (electon, gamma, positron) of the highest energy particle
+**true.higher_particle_type** : The particle type (electron, gamma, positron) of the highest energy particle
 in the event. (1 - gamma, 3-electron, 47- alpha)
 
-**true.lower_particle_type** : The particle type (electon, gamma, positron) of the lowest energy particle
+**true.lower_particle_type** : The particle type (electron, gamma, positron) of the lowest energy particle
 in the event. (1 - gamma, 3-electron, 47- alpha)
 
 

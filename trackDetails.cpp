@@ -7,6 +7,10 @@ TrackDetails::TrackDetails()
 
 TrackDetails::TrackDetails(snemo::datamodel::particle_track track)
 {
+  
+  foilmostVertex_.SetXYZ(-9999,-9999,-9999);
+  direction_.SetXYZ(-9999,-9999,-9999);
+  projectedVertex_.SetXYZ(-9999,-9999,-9999);
   this->Initialize(track);
 }
 
@@ -19,8 +23,9 @@ void TrackDetails::Initialize(snemo::datamodel::particle_track track)
 
 bool TrackDetails::Initialize()
 {
-  if (!hasTrack_) return false;
-  // Populate everything you can
+  if (!hasTrack_) return false; // You can't get the track details unless there is a track
+  
+  // Populate everything you can about the track
   switch (track_.get_charge())
   {
     case snemo::datamodel::particle_track::NEUTRAL:
@@ -112,6 +117,152 @@ bool TrackDetails::Initialize()
   }
   return true;
 } // end Initialize
+
+
+// Return true if vertex is on the foil
+// Populate the inner vertex
+bool TrackDetails::SetFoilmostVertex()
+{
+  if ( !hasTrack_) return false;
+  double thisInnerVertex=0; // stores the y coordinate of the vertex closest to the source foil
+  double closestX=9999;
+  bool hasVertexOnFoil=false;
+  if (track_.has_vertices()) // There isn't any time ordering to the vertices so check them all
+  {
+    for (unsigned int iVertex=0; iVertex<track_.get_vertices().size();++iVertex)
+    {
+      const geomtools::blur_spot & vertex = track_.get_vertices().at(iVertex).get();
+      if (snemo::datamodel::particle_track::vertex_is_on_source_foil(vertex))
+      {
+        hasVertexOnFoil = true;
+      }
+      const geomtools::vector_3d & vertexTranslation = vertex.get_placement().get_translation();
+      // Get details for the vertex nearest the source foil, which is at x = 0
+      if (TMath::Abs(vertexTranslation.x()) < closestX) // this is nearer the foil
+      {
+        closestX=vertexTranslation.x();
+        foilmostVertex_.SetXYZ(vertexTranslation.x(),vertexTranslation.y(),vertexTranslation.z());
+      } // end for each vertex
+    }
+  }
+  return hasVertexOnFoil;
+}
+// Populates the direction_ vector with the direction of the track at the foilmost end
+// Returns true if you managed to set it, false if not
+bool TrackDetails::SetDirection()
+{
+  if ( !hasTrack_) return false;
+  if (!track_.has_trajectory()) return false; // Can't get the direction without a trajectory!
+  const snemo::datamodel::base_trajectory_pattern & the_base_pattern = track_.get_trajectory().get_pattern();
+  
+  if (the_base_pattern.get_pattern_id()=="line") {
+    const geomtools::line_3d & the_shape = (const geomtools::line_3d&)the_base_pattern.get_shape();
+    // Find the two ends of the track
+    geomtools::vector_3d one_end=the_shape.get_first();
+    geomtools::vector_3d the_other_end=the_shape.get_last();
+    // which is which?
+    geomtools::vector_3d foilmost_end = ((TMath::Abs(one_end.x()) < TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
+    geomtools::vector_3d outermost_end = ((TMath::Abs(one_end.x()) >= TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
+    geomtools::vector_3d direction = the_shape.get_direction_on_curve(the_shape.get_first()); // Only the first stores the direction for a line track
+    int multiplier = (direction.x() * outermost_end.x() > 0)? 1: -1; // If the direction points the wrong way, reverse it
+    // This will always point inwards towards the foil
+    direction_.SetXYZ(direction.x() * multiplier, direction.y() * multiplier, direction.z() * multiplier);
+  } //end line track
+  else {
+    const geomtools::helix_3d & the_shape = (const geomtools::helix_3d&)the_base_pattern.get_shape();
+    // Find the two ends of the track
+    geomtools::vector_3d one_end=the_shape.get_first();
+    geomtools::vector_3d the_other_end=the_shape.get_last();
+    // which is which?
+    geomtools::vector_3d foilmost_end = ((TMath::Abs(one_end.x()) < TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
+    geomtools::vector_3d outermost_end = ((TMath::Abs(one_end.x()) >= TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
+    
+    geomtools::vector_3d direction = the_shape.get_direction_on_curve(foilmost_end); // Not the same on a curve
+    int multiplier = (direction.x() * outermost_end.x() > 0)? 1: -1; // If the direction points the wrong way, reverse it
+    // This will also point in towards the foil. Is that misleading in the case of a track that curves towards the foil and then out again? Not a problem when looking for bb events, but would it be misleading in cases of tracks from the wires?
+    direction_.SetXYZ(direction.x() * multiplier, direction.y() * multiplier, direction.z() * multiplier);
+  }// end helix track
+  return true;
+}
+
+// Populate the projectedVertex_ vector with where the vertex would be if it were projected back to the foil
+// At the moment this uses a simple linear projection; would be better to project the helix
+// Return false if the vertex does not project back to the foil (track would not intersect foil or we don't have enough info)
+bool TrackDetails::SetProjectedVertex()
+{
+  // Check that we have the necessary to do this calculation
+  if (GetFoilmostVertexX()==-9999 || GetDirectionX()==-9999 || !hasTrack_) return false;
+  
+  double scale=foilmostVertex_.X()/direction_.X();
+  projectedVertex_=foilmostVertex_ - scale*direction_; // The second term is the extension to the track to project it back with a straight line
+  // The direction has been chosen so it will always point outwards from the foil.
+  // The calculation should always give a projected X coordinate of 0
+  // But if it projects in such a way that the y or z values are outside the detector, we should return false
+  if (TMath::Abs(projectedVertex_.Y()) > MAXY || TMath::Abs(projectedVertex_.Z()) > MAXZ)
+  {
+    return false;
+  }
+  return true;
+}
+  
+// Getters for the vertex information
+
+// Foilmost vertex
+double TrackDetails::GetFoilmostVertexX()
+{
+  return foilmostVertex_.X();
+}
+double TrackDetails::GetFoilmostVertexY()
+{
+  return foilmostVertex_.Y();
+}
+double TrackDetails::GetFoilmostVertexZ()
+{
+  return foilmostVertex_.Z();
+}
+TVector3 TrackDetails::GetFoilmostVertex()
+{
+  return foilmostVertex_;
+}
+bool TrackDetails::HasFoilVertex()
+{
+  return vertexOnFoil_;
+}
+// Foil-projected vertex
+double TrackDetails::GetProjectedVertexX()
+{
+  return projectedVertex_.X();
+}
+double TrackDetails::GetProjectedVertexY()
+{
+  return projectedVertex_.Y();
+}
+double TrackDetails::GetProjectedVertexZ()
+{
+  return projectedVertex_.Z();
+}
+TVector3 TrackDetails::GetProjectedVertex()
+{
+  return projectedVertex_;
+}
+// Track direction at the inner vertex
+double TrackDetails::GetDirectionX()
+{
+  return direction_.X();
+}
+double TrackDetails::GetDirectionY()
+{
+  return direction_.Y();
+}
+double TrackDetails::GetDirectionZ()
+{
+  return direction_.Z();
+}
+TVector3 TrackDetails::GetDirection()
+{
+  return direction_;
+}
+
 
 
 // What particle is it?

@@ -25,9 +25,9 @@
 
 
 class TrackDetails{
-  TVector3 foilmostVertex_;
+  TVector3 foilmostVertex_ ;
   TVector3 direction_;
-  bool vertexOnFoil_;
+  bool vertexOnFoil_=false;
   TVector3 projectedVertex_;
   enum Particle { ELECTRON, GAMMA, ALPHA, UNKNOWN };
   Particle particleType_=UNKNOWN;
@@ -40,13 +40,18 @@ class TrackDetails{
   bool makesTrack_=false;
   snemo::datamodel::particle_track track_;
   bool hasTrack_=false;
-  bool CheckFoilmostVertex(snemo::datamodel::particle_track track);
+  bool SetFoilmostVertex();
+  bool SetDirection();
+  bool SetProjectedVertex();
 public:
 
   // SuperNEMO constants
   int MAINWALL=1302;
   int XWALL=1232;
   int GVETO=1252;
+  
+  double MAXY=2505.494; // This is the calo position but maybe it should be the end of the actual foils?
+  double MAXZ=1400; // This is not exact! Get the real value!
   
   TrackDetails();
   TrackDetails(snemo::datamodel::particle_track track);
@@ -76,22 +81,23 @@ public:
   double GetVetoFraction();
 
   // Foilmost vertex
-  double getFoilmostVertexX();
-  double getFoilmostVertexY();
-  double getFoilmostVertexZ();
-  TVector3 getFoilmostVertex();
+  double GetFoilmostVertexX();
+  double GetFoilmostVertexY();
+  double GetFoilmostVertexZ();
+  TVector3 GetFoilmostVertex();
+  bool HasFoilVertex();
   
   // Direction at foilmost end
-  double getDirectionX();
-  double getDirectionY();
-  double getDirectionZ();
-  TVector3 getDirection();
+  double GetDirectionX();
+  double GetDirectionY();
+  double GetDirectionZ();
+  TVector3 GetDirection();
   
   // Foil-projected vertex
-  double getProjectedVertexX();
-  double getProjectedVertexY();
-  double getProjectedVertexZ();
-  TVector3 getProjectedVertex();
+  double GetProjectedVertexX();
+  double GetProjectedVertexY();
+  double GetProjectedVertexZ();
+  TVector3 GetProjectedVertex();
   
   
   
