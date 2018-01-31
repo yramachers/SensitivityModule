@@ -50,6 +50,8 @@ typedef struct SensitivityEventStorage{
   std::vector<int> electron_charges_;
   std::vector<double> gamma_energies_;
   std::vector<double>* delayed_track_time_;
+  std::vector<double> electron_track_lengths_;
+  std::vector<int> electron_hit_counts_;
 
 
   // Get vertex position of up to two tracks in mm

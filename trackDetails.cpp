@@ -64,7 +64,6 @@ bool TrackDetails::Initialize()
   // Identify alpha candidates
   // Get edgemost inner vertex, regardless of whether they have associated calorimeters etc
 
-  
   const snemo::datamodel::tracker_trajectory & the_trajectory = track_.get_trajectory();
   const snemo::datamodel::tracker_cluster & the_cluster = the_trajectory.get_cluster();
   

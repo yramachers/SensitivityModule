@@ -68,6 +68,10 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("reco.gamma_energies",&sensitivity_.gamma_energies_);
   tree_->Branch("reco.highest_gamma_energy",&sensitivity_.highest_gamma_energy_);
   
+  // Electron track lengths
+  tree_->Branch("reco.electron_track_lengths",&sensitivity_.electron_track_lengths_);
+  tree_->Branch("reco.electron_hit_counts",&sensitivity_.electron_hit_counts_);
+  
   // Vertex positions (max 2 tracks)
   tree_->Branch("reco.first_vertex_x",&sensitivity_.first_vertex_x_);
   tree_->Branch("reco.first_vertex_y",&sensitivity_.first_vertex_y_);
@@ -102,10 +106,6 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("reco.alpha_proj_vertex_x",&sensitivity_.alpha_proj_vertex_x_); // vector
   tree_->Branch("reco.alpha_proj_vertex_y",&sensitivity_.alpha_proj_vertex_y_); // vector
   tree_->Branch("reco.alpha_proj_vertex_z",&sensitivity_.alpha_proj_vertex_z_); // vector
-  tree_->Branch("reco.edgemost_vertex",&sensitivity_.edgemost_vertex_);
-  
-  
-  
   tree_->Branch("reco.edgemost_vertex",&sensitivity_.edgemost_vertex_);
   
   // Topologies
@@ -225,6 +225,8 @@ SensitivityModule::process(datatools::things& workItem) {
   std::vector<double> gammaEnergies;
   std::vector<double> electronEnergies;
   std::vector<int> electronCharges;
+  std::vector<double> electronTrackLengths;
+  std::vector<int> electronHitCounts;
   std::vector<bool> electronsFromFoil;
 
   std::vector<int> electronCaloType; // will be translated to the vectors for each type at the end
@@ -427,6 +429,8 @@ SensitivityModule::process(datatools::things& workItem) {
           InsertAt(trackDetails.GetFoilmostVertex(),electronVertices,pos);
           InsertAt(trackDetails.GetProjectedVertex(),electronProjVertices,pos);
           InsertAt(trackDetails.GetDirection(),electronDirections,pos);
+          InsertAt(trackDetails.GetTrackLength(),electronTrackLengths,pos);
+          InsertAt(trackDetails.GetTrackerHitCount(),electronHitCounts,pos);
         }
         
         // Now look for alpha candidates
@@ -970,6 +974,8 @@ SensitivityModule::process(datatools::things& workItem) {
   sensitivity_.projection_distance_xy_=projectionDistanceXY;
   sensitivity_.foil_alpha_count_=foilAlphaCount;
   sensitivity_.electrons_from_foil_=electronsFromFoil;
+  sensitivity_.electron_track_lengths_=electronTrackLengths;
+  sensitivity_.electron_hit_counts_=electronHitCounts;
   
   // And the new vertex vectors - we can rely on these all being the same size of vectors as we populate them all together
   // It does not restart the vector every time so we have to do that manually
