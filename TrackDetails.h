@@ -39,11 +39,16 @@ class TrackDetails{
   int charge_=1;
   bool makesTrack_=false;
   snemo::datamodel::particle_track track_;
+  double delayTime_=0 ;
+  int trackerHitCount_= 0;
+  double trackLength_= 0;
+  
   bool hasTrack_=false;
   bool SetFoilmostVertex();
   bool SetDirection();
   bool SetProjectedVertex();
   bool PopulateCaloHits();
+  
 public:
 
   // SuperNEMO constants
@@ -100,7 +105,10 @@ public:
   double GetProjectedVertexZ();
   TVector3 GetProjectedVertex();
   
-  
+  // For charged particle tracks
+  double GetTrackLength();
+  int GetTrackerHitCount();
+  double GetDelayTime();
   
 };
 

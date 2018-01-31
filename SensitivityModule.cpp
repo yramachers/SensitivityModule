@@ -399,41 +399,13 @@ SensitivityModule::process(datatools::things& workItem) {
         {
           alphaCandidates.push_back(track);
           if (trackDetails.HasFoilVertex()) foilAlphaCount++;
-          // £££££ Get the cluster delay stuff
+          trajClDelayedTime.push_back(trackDetails.GetDelayTime());
+          delayedClusterHitCount = trackDetails.GetTrackerHitCount(); // This will get overwritten if there are 2+ alphas, is that really what we want?
         }
-        
-        
-        if (track.has_trajectory())
-        {
-          const snemo::datamodel::tracker_trajectory & the_trajectory = track.get_trajectory();
-          const snemo::datamodel::tracker_cluster & the_cluster = the_trajectory.get_cluster();
-
-          // Alpha candidates are undefined charge particles associated with a delayed hit and no associated hit
-          if (track.get_charge()==snemo::datamodel::particle_track::UNDEFINED && !track.has_associated_calorimeter_hits() && the_cluster.is_delayed()>0)
-          {
-            //alphaCandidates.push_back(track);
-            trajClDelayedTime.push_back(the_cluster.get_hit(0).get_delayed_time());
-            delayedClusterHitCount = the_cluster.get_number_of_hits();
-//            bool hasVertexOnFoil = false;
-//            // Now check if it has a foil vertex
-//            if (track.has_vertices()) // There doesn't seem to be any time ordering to the vertices
-//            {
-//              for (unsigned int iVertex=0; iVertex<track.get_vertices().size();++iVertex)
-//              {
-//                const geomtools::blur_spot & vertex = track.get_vertices().at(iVertex).get();
-//                if (snemo::datamodel::particle_track::vertex_is_on_source_foil(vertex))
-//                {
-//                  hasVertexOnFoil = true;
-//                }
-//              }
-//            }
-//            if (hasVertexOnFoil) foilAlphaCount++; // We are just counting
-          }
-        }
-
       } // end for each particle
     } // end if has particles
 
+    
     if (electronCandidates.size()==2 && trackCount==2)
     {
       is2electron = true;

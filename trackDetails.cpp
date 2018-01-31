@@ -21,6 +21,10 @@ void TrackDetails::Initialize(snemo::datamodel::particle_track track)
   this->Initialize();
 }
 
+// Populates all relevant branche based on type of particle (gamma, alpha, electron)
+// Returns true if it has identified a particle type and initialized
+// Returns false if it can't work out what sort of particle it is
+
 bool TrackDetails::Initialize()
 {
   if (!hasTrack_) return false; // You can't get the track details unless there is a track
@@ -32,49 +36,6 @@ bool TrackDetails::Initialize()
     {
       particleType_=GAMMA;
       PopulateCaloHits();
-//      double thisEnergy=0;
-//      double thisXwallEnergy=0;
-//      double thisVetoEnergy=0;
-//      double thisMainWallEnergy=0;
-//
-//      // Store the gamma candidate energies
-//      double firstHitTime=-1.;
-//      int firstHitType=0;
-//      // Store the gamma candidate energies
-//      // There could be multiple hits for a gamma so we need to add them up
-//      for (unsigned int hit=0; hit<track_.get_associated_calorimeter_hits().size();++hit)
-//      {
-//
-//        const snemo::datamodel::calibrated_calorimeter_hit & calo_hit = track_.get_associated_calorimeter_hits().at(hit).get();
-//        double thisHitEnergy=calo_hit.get_energy();
-//        // Sum the energies
-//        thisEnergy +=  thisHitEnergy;
-//
-//        // We want to know what fraction of the energy was deposited in each calo wall
-//        int hitType=calo_hit.get_geom_id().get_type();
-//        if (hitType==MAINWALL)
-//        thisMainWallEnergy+= thisHitEnergy;
-//        else if (hitType==XWALL)
-//        thisXwallEnergy+= thisHitEnergy;
-//        else if (hitType==GVETO)
-//        thisVetoEnergy+= thisHitEnergy;
-//        else cout<<"WARNING: Unknown calorimeter type "<<hitType<<endl;
-//
-//        // Get the coordinates of the hit with the earliest time
-//        if (firstHitTime==-1 || calo_hit.get_time()<firstHitTime)
-//        {
-//          firstHitTime=calo_hit.get_time();
-//          // Find out which calo wall it hit first
-//          firstHitType=hitType;
-//        }
-//      }
-//
-//      energy_=thisEnergy;
-//      firstHitType_=firstHitType;
-//      // And the fraction of the energy deposited in each wall
-//      mainwallFraction_=thisMainWallEnergy/thisEnergy;
-//      xwallFraction_=thisXwallEnergy/thisEnergy;
-//      vetoFraction_=thisVetoEnergy/thisEnergy;
       return true;
     } // end case neutral (gammas)
     
@@ -86,15 +47,11 @@ bool TrackDetails::Initialize()
     break;
     default:
     {
-      particleType_=UNKNOWN; // Nothing we can do here so we are done
+      particleType_= UNKNOWN; // Nothing we can do here so we are done
       return false;
     }
   }//end switch
   
-  // Now we have only charged particles remaining there are a few things we can do:
-  // Identify electron candidates
-  // Identify alpha candidates
-  // Get edgemost inner vertex, regardless of whether they have associated calorimeters etc
 
   if (!track_.has_trajectory())
   {
@@ -102,25 +59,41 @@ bool TrackDetails::Initialize()
     return false;
   }
   
+  // Now we have only charged particles remaining there are a few things we can do:
+  // Identify electron candidates
+  // Identify alpha candidates
+  // Get edgemost inner vertex, regardless of whether they have associated calorimeters etc
+
+  
   const snemo::datamodel::tracker_trajectory & the_trajectory = track_.get_trajectory();
   const snemo::datamodel::tracker_cluster & the_cluster = the_trajectory.get_cluster();
-    
+  
+  // Number of hits and lengths of track
+  trackerHitCount_ = the_cluster.get_number_of_hits(); // Currently a track only contains 1 cluster
+  trackLength_ = the_trajectory.get_pattern().get_shape().get_length();
+  
+  // Get details about the vertex position
+  vertexOnFoil_ = SetFoilmostVertex();
+  if (SetDirection()) SetProjectedVertex(); // Can't project if no direction!
+  
   // ALPHA candidates are undefined charge particles associated with a delayed hit and no associated hit
   if (track_.get_charge()==snemo::datamodel::particle_track::UNDEFINED && !track_.has_associated_calorimeter_hits() && the_cluster.is_delayed()>0)
   {
     particleType_=ALPHA;
+    delayTime_ = (the_cluster.get_hit(0).get_delayed_time());
+    return true;
   }
   // ELECTRON candidates are prompt and have an associated calorimeter hit. No charge requirement as yet
   else if (the_cluster.is_delayed()<=0 && track_.has_associated_calorimeter_hits())
   {
     particleType_=ELECTRON;
-    charge_=track_.get_charge();
+    charge_= track_.get_charge();
     PopulateCaloHits(); // As it has an associated hit, we can calculate the hit fractions
+    return true;
   }
   
-  vertexOnFoil_ = SetFoilmostVertex();
-  if (SetDirection()) SetProjectedVertex(); // Can't project if no direction!
-  return true;
+  
+  return false; // Not an alpha or an electron, what could it be?
 } // end Initialize
 
 bool TrackDetails::PopulateCaloHits()
@@ -345,7 +318,7 @@ int TrackDetails::GetCharge()
 }
 
 
-
+// For anything that hits the calo wall
 double TrackDetails::GetEnergy()
 {
   return (energy_);
@@ -385,6 +358,22 @@ bool TrackDetails::HitGammaVeto()
 {
   return (firstHitType_ == GVETO);
 }
+
+// Details of the track
+double TrackDetails::GetTrackLength()
+{
+  return (trackLength_);
+}
+
+double TrackDetails::GetDelayTime()
+{
+  return (delayTime_);
+}
+int TrackDetails::GetTrackerHitCount()
+{
+  return trackerHitCount_;
+}
+
 
 // Does it make a track? (charged particle)
 bool TrackDetails::MakesTrack()
