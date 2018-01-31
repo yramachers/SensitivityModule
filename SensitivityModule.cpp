@@ -84,6 +84,28 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("reco.projection_distance_xy",&sensitivity_.projection_distance_xy_);
   tree_->Branch("reco.vertices_on_foil",&sensitivity_.vertices_on_foil_);
   tree_->Branch("reco.electrons_from_foil",&sensitivity_.electrons_from_foil_);
+  tree_->Branch("reco.electron_vertex_x",&sensitivity_.electron_vertex_x_); // vector
+  tree_->Branch("reco.electron_vertex_y",&sensitivity_.electron_vertex_y_); // vector
+  tree_->Branch("reco.electron_vertex_z",&sensitivity_.electron_vertex_z_); // vector
+  tree_->Branch("reco.electron_dir_x",&sensitivity_.electron_dir_x_); // vector
+  tree_->Branch("reco.electron_dir_y",&sensitivity_.electron_dir_y_); // vector
+  tree_->Branch("reco.electron_dir_z",&sensitivity_.electron_dir_z_); // vector
+  tree_->Branch("reco.electron_proj_vertex_x",&sensitivity_.electron_proj_vertex_x_); // vector
+  tree_->Branch("reco.electron_proj_vertex_y",&sensitivity_.electron_proj_vertex_y_); // vector
+  tree_->Branch("reco.electron_proj_vertex_z",&sensitivity_.electron_proj_vertex_z_); // vector
+  tree_->Branch("reco.alpha_vertex_x",&sensitivity_.alpha_vertex_x_); // vector
+  tree_->Branch("reco.alpha_vertex_y",&sensitivity_.alpha_vertex_y_); // vector
+  tree_->Branch("reco.alpha_vertex_z",&sensitivity_.alpha_vertex_z_); // vector
+  tree_->Branch("reco.alpha_dir_x",&sensitivity_.alpha_dir_x_); // vector
+  tree_->Branch("reco.alpha_dir_y",&sensitivity_.alpha_dir_y_); // vector
+  tree_->Branch("reco.alpha_dir_z",&sensitivity_.alpha_dir_z_); // vector
+  tree_->Branch("reco.alpha_proj_vertex_x",&sensitivity_.alpha_proj_vertex_x_); // vector
+  tree_->Branch("reco.alpha_proj_vertex_y",&sensitivity_.alpha_proj_vertex_y_); // vector
+  tree_->Branch("reco.alpha_proj_vertex_z",&sensitivity_.alpha_proj_vertex_z_); // vector
+  tree_->Branch("reco.edgemost_vertex",&sensitivity_.edgemost_vertex_);
+  
+  
+  
   tree_->Branch("reco.edgemost_vertex",&sensitivity_.edgemost_vertex_);
   
   // Topologies
@@ -243,6 +265,15 @@ SensitivityModule::process(datatools::things& workItem) {
   for (int i=0;i<1;i++)
     vertexPositionDelayedHit[i].SetXYZ(-9999,-9999,-9999);
   TVector3 trackDirection[2];
+  
+  std::vector<TVector3> electronVertices;
+  std::vector<TVector3> electronDirections;
+  std::vector<TVector3> electronProjVertices;
+  std::vector<TVector3> alphaVertices;
+  std::vector<TVector3> alphaDirections;
+  std::vector<TVector3> alphaProjVertices;
+  
+  
   double angleBetweenTracks;
   bool sameSideOfFoil=false;
   bool alphaCrossesFoil=false;
@@ -392,19 +423,29 @@ SensitivityModule::process(datatools::things& workItem) {
           InsertAt(trackDetails.GetCharge(),electronCharges,pos);
           // And whether or not they are from the foil
           InsertAt(trackDetails.HasFoilVertex(),electronsFromFoil,pos);
+          // Vertices, directions, and vertices if projected back to foil
+          InsertAt(trackDetails.GetFoilmostVertex(),electronVertices,pos);
+          InsertAt(trackDetails.GetProjectedVertex(),electronProjVertices,pos);
+          InsertAt(trackDetails.GetDirection(),electronDirections,pos);
         }
         
         // Now look for alpha candidates
         if (trackDetails.IsAlpha())
         {
           alphaCandidates.push_back(track);
+          // Vertex and direction info
+          alphaVertices.push_back(trackDetails.GetFoilmostVertex());
+          alphaDirections.push_back(trackDetails.GetDirection());
+          alphaProjVertices.push_back(trackDetails.GetProjectedVertex());
           if (trackDetails.HasFoilVertex()) foilAlphaCount++;
+          // Time of first delayed hit
           trajClDelayedTime.push_back(trackDetails.GetDelayTime());
           delayedClusterHitCount = trackDetails.GetTrackerHitCount(); // This will get overwritten if there are 2+ alphas, is that really what we want?
         }
       } // end for each particle
     } // end if has particles
 
+    // Now identify topologies
     
     if (electronCandidates.size()==2 && trackCount==2)
     {
@@ -930,6 +971,53 @@ SensitivityModule::process(datatools::things& workItem) {
   sensitivity_.foil_alpha_count_=foilAlphaCount;
   sensitivity_.electrons_from_foil_=electronsFromFoil;
   
+  // And the new vertex vectors - we can rely on these all being the same size of vectors as we populate them all together
+  // It does not restart the vector every time so we have to do that manually
+  sensitivity_.electron_vertex_x_.clear();
+  sensitivity_.electron_vertex_y_.clear();
+  sensitivity_.electron_vertex_z_.clear();
+  sensitivity_.electron_proj_vertex_x_.clear();
+  sensitivity_.electron_proj_vertex_y_.clear();
+  sensitivity_.electron_proj_vertex_z_.clear();
+  sensitivity_.electron_dir_x_.clear();
+  sensitivity_.electron_dir_y_.clear();
+  sensitivity_.electron_dir_z_.clear();
+  sensitivity_.alpha_vertex_x_.clear();
+  sensitivity_.alpha_vertex_y_.clear();
+  sensitivity_.alpha_vertex_z_.clear();
+  sensitivity_.alpha_proj_vertex_x_.clear();
+  sensitivity_.alpha_proj_vertex_y_.clear();
+  sensitivity_.alpha_proj_vertex_z_.clear();
+  sensitivity_.alpha_dir_x_.clear();
+  sensitivity_.alpha_dir_y_.clear();
+  sensitivity_.alpha_dir_z_.clear();
+  
+  for (int i=0;i<electronVertices.size();i++)
+  {
+    sensitivity_.electron_vertex_x_.push_back(electronVertices.at(i).X());
+    sensitivity_.electron_vertex_y_.push_back(electronVertices.at(i).Y());
+    sensitivity_.electron_vertex_z_.push_back(electronVertices.at(i).Z());
+    sensitivity_.electron_proj_vertex_x_.push_back(electronProjVertices.at(i).X());
+    sensitivity_.electron_proj_vertex_y_.push_back(electronProjVertices.at(i).Y());
+    sensitivity_.electron_proj_vertex_z_.push_back(electronProjVertices.at(i).Z());
+    sensitivity_.electron_dir_x_.push_back(electronDirections.at(i).X());
+    sensitivity_.electron_dir_y_.push_back(electronDirections.at(i).Y());
+    sensitivity_.electron_dir_z_.push_back(electronDirections.at(i).Z());
+  }
+
+  for (int i=0;i<alphaVertices.size();i++)
+  {
+    sensitivity_.alpha_vertex_x_.push_back(alphaVertices.at(i).X());
+    sensitivity_.alpha_vertex_y_.push_back(alphaVertices.at(i).Y());
+    sensitivity_.alpha_vertex_z_.push_back(alphaVertices.at(i).Z());
+    sensitivity_.alpha_proj_vertex_x_.push_back(alphaProjVertices.at(i).X());
+    sensitivity_.alpha_proj_vertex_y_.push_back(alphaProjVertices.at(i).Y());
+    sensitivity_.alpha_proj_vertex_z_.push_back(alphaProjVertices.at(i).Z());
+    sensitivity_.alpha_dir_x_.push_back(alphaDirections.at(i).X());
+    sensitivity_.alpha_dir_y_.push_back(alphaDirections.at(i).Y());
+    sensitivity_.alpha_dir_z_.push_back(alphaDirections.at(i).Z());
+  }
+  
   // Vertex for other topologies
   if(is1e1alpha)
   {
@@ -1124,78 +1212,3 @@ void SensitivityModule::reset() {
   this->_set_initialized(false);
 }
 
-
-
-
-////###################
-//
-//TrackDetails::TrackDetails()
-//{};
-//
-//TrackDetails::TrackDetails(snemo::datamodel::particle_track track)
-//{
-//  //this->Initialize(track);
-//}
-//
-//void TrackDetails::Initialize(snemo::datamodel::particle_track track)
-//{
-//  // Populate everything you can
-//  switch (track.get_charge())
-//  {
-//    case snemo::datamodel::particle_track::NEUTRAL:
-//    {
-//      particleType_=GAMMA;
-//      //      double thisEnergy=0;
-//      //      double thisXwallEnergy=0;
-//      //      double thisVetoEnergy=0;
-//      //      double thisMainWallEnergy=0;
-//      //
-//      //      // Store the gamma candidate energies
-//      //      double firstHitTime=-1.;
-//      //      int firstHitType=0;
-//      //      // Store the gamma candidate energies
-//      //      for (unsigned int hit=0; hit<track.get_associated_calorimeter_hits().size();++hit)
-//      //      {
-//      //
-//      //        const snemo::datamodel::calibrated_calorimeter_hit & calo_hit = track.get_associated_calorimeter_hits().at(hit).get();
-//      //        double thisHitEnergy=calo_hit.get_energy();
-//      //        thisEnergy +=  thisHitEnergy;
-//      //        int hitType=calo_hit.get_geom_id().get_type();
-//      //        if (hitType==mainWallHitType)
-//      //        thisMainWallEnergy+= thisHitEnergy;
-//      //        else if (hitType==xWallHitType)
-//      //        thisXwallEnergy+= thisHitEnergy;
-//      //        else if (hitType==gammaVetoHitType)
-//      //        thisVetoEnergy+= thisHitEnergy;
-//      //        else cout<<"WARNING: Unknown calorimeter type "<<hitType<<endl;
-//      //
-//      //        // Get the coordinates of the hit with the earliest time
-//      //        if (firstHitTime==-1 || calo_hit.get_time()<firstHitTime)
-//      //        {
-//      //          firstHitTime=calo_hit.get_time();
-//      //          // Find out which calo wall
-//      //          firstHitType=hitType;
-//      //        }
-//      //      }
-//      //
-//      //      // Order the energies etc
-//      //      energy_=thisEnergy;
-//      //
-//      //      firstHitType_=firstHitType;
-//      //      // And the fraction of the energy deposited in each wall
-//      //      mainwallFraction_=thisMainWallEnergy/thisEnergy;
-//      //      xwallFraction_=thisXwallEnergy/thisEnergy;
-//      //      vetoFraction_=thisVetoEnergy/thisEnergy;
-//    } // end case neutral (gammas)
-//    
-//    default:
-//    {
-//      particleType_=UNKNOWN;
-//    }
-//  }//end switch
-//} // end Initialize
-//
-//bool TrackDetails::IsGamma()
-//{
-//  return (particleType_==GAMMA);
-//}
