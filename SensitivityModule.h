@@ -30,6 +30,9 @@
 #include "falaise/snemo/datamodels/tracker_clustering_solution.h"
 #include "falaise/snemo/datamodels/particle_track_data.h"
 
+// From this application
+#include "TrackDetails.h"
+
 typedef struct SensitivityEventStorage{
   bool passes_two_calorimeters_;
   bool passes_two_plus_calos_;
@@ -47,6 +50,8 @@ typedef struct SensitivityEventStorage{
   std::vector<int> electron_charges_;
   std::vector<double> gamma_energies_;
   std::vector<double>* delayed_track_time_;
+  std::vector<double> electron_track_lengths_;
+  std::vector<int> electron_hit_counts_;
 
 
   // Get vertex position of up to two tracks in mm
@@ -65,6 +70,29 @@ typedef struct SensitivityEventStorage{
   double second_track_direction_x_;
   double second_track_direction_y_;
   double second_track_direction_z_;
+  
+  
+  // While I will keep those for legacy (at least for now), also add vectors of electron vertices and directions
+  std::vector<double> electron_vertex_x_;
+  std::vector<double> electron_vertex_y_;
+  std::vector<double> electron_vertex_z_;
+  std::vector<double> electron_dir_x_;
+  std::vector<double> electron_dir_y_;
+  std::vector<double> electron_dir_z_;
+  std::vector<double> electron_proj_vertex_x_;
+  std::vector<double> electron_proj_vertex_y_;
+  std::vector<double> electron_proj_vertex_z_;
+  std::vector<double> alpha_vertex_x_;
+  std::vector<double> alpha_vertex_y_;
+  std::vector<double> alpha_vertex_z_;
+  std::vector<double> alpha_dir_x_;
+  std::vector<double> alpha_dir_y_;
+  std::vector<double> alpha_dir_z_;
+  std::vector<double> alpha_proj_vertex_x_;
+  std::vector<double> alpha_proj_vertex_y_;
+  std::vector<double> alpha_proj_vertex_z_;
+  
+  
   // Use these to estimate the vertex position if the vertex were on the foil (x=0)
   // We only need y and z values for these, as x will always be 0 by definition
   double first_proj_vertex_y_;
@@ -177,3 +205,5 @@ class SensitivityModule : public dpp::base_module {
   DPP_MODULE_REGISTRATION_INTERFACE(SensitivityModule);
 };
 #endif // TESTMODULE_HH
+
+

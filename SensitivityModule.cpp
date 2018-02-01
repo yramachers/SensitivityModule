@@ -34,7 +34,6 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
                 std::runtime_error,
                 "Null pointer to geometry manager return by geometry_service");
   }
-
   // Extract the filename_out key from the supplied config, if
   // the key exists. datatools::properties throws an exception if
   // the key isn't in the config, so catch this if thrown and don't do
@@ -45,6 +44,7 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   }
 
   // Use the method of PTD2ROOT to create a root file with just the branches we need for the sensitivity analysis
+
 
   hfile_ = new TFile(filename_output_.c_str(),"RECREATE","Output file of Simulation data");
   hfile_->cd();
@@ -81,6 +81,10 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("reco.gamma_energies",&sensitivity_.gamma_energies_);
   tree_->Branch("reco.highest_gamma_energy",&sensitivity_.highest_gamma_energy_);
   
+  // Electron track lengths
+  tree_->Branch("reco.electron_track_lengths",&sensitivity_.electron_track_lengths_);
+  tree_->Branch("reco.electron_hit_counts",&sensitivity_.electron_hit_counts_);
+  
   // Vertex positions (max 2 tracks)
   tree_->Branch("reco.first_vertex_x",&sensitivity_.first_vertex_x_);
   tree_->Branch("reco.first_vertex_y",&sensitivity_.first_vertex_y_);
@@ -97,6 +101,24 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("reco.projection_distance_xy",&sensitivity_.projection_distance_xy_);
   tree_->Branch("reco.vertices_on_foil",&sensitivity_.vertices_on_foil_);
   tree_->Branch("reco.electrons_from_foil",&sensitivity_.electrons_from_foil_);
+  tree_->Branch("reco.electron_vertex_x",&sensitivity_.electron_vertex_x_); // vector
+  tree_->Branch("reco.electron_vertex_y",&sensitivity_.electron_vertex_y_); // vector
+  tree_->Branch("reco.electron_vertex_z",&sensitivity_.electron_vertex_z_); // vector
+  tree_->Branch("reco.electron_dir_x",&sensitivity_.electron_dir_x_); // vector
+  tree_->Branch("reco.electron_dir_y",&sensitivity_.electron_dir_y_); // vector
+  tree_->Branch("reco.electron_dir_z",&sensitivity_.electron_dir_z_); // vector
+  tree_->Branch("reco.electron_proj_vertex_x",&sensitivity_.electron_proj_vertex_x_); // vector
+  tree_->Branch("reco.electron_proj_vertex_y",&sensitivity_.electron_proj_vertex_y_); // vector
+  tree_->Branch("reco.electron_proj_vertex_z",&sensitivity_.electron_proj_vertex_z_); // vector
+  tree_->Branch("reco.alpha_vertex_x",&sensitivity_.alpha_vertex_x_); // vector
+  tree_->Branch("reco.alpha_vertex_y",&sensitivity_.alpha_vertex_y_); // vector
+  tree_->Branch("reco.alpha_vertex_z",&sensitivity_.alpha_vertex_z_); // vector
+  tree_->Branch("reco.alpha_dir_x",&sensitivity_.alpha_dir_x_); // vector
+  tree_->Branch("reco.alpha_dir_y",&sensitivity_.alpha_dir_y_); // vector
+  tree_->Branch("reco.alpha_dir_z",&sensitivity_.alpha_dir_z_); // vector
+  tree_->Branch("reco.alpha_proj_vertex_x",&sensitivity_.alpha_proj_vertex_x_); // vector
+  tree_->Branch("reco.alpha_proj_vertex_y",&sensitivity_.alpha_proj_vertex_y_); // vector
+  tree_->Branch("reco.alpha_proj_vertex_z",&sensitivity_.alpha_proj_vertex_z_); // vector
   tree_->Branch("reco.edgemost_vertex",&sensitivity_.edgemost_vertex_);
   
   // Topologies
@@ -216,6 +238,8 @@ SensitivityModule::process(datatools::things& workItem) {
   std::vector<double> gammaEnergies;
   std::vector<double> electronEnergies;
   std::vector<int> electronCharges;
+  std::vector<double> electronTrackLengths;
+  std::vector<int> electronHitCounts;
   std::vector<bool> electronsFromFoil;
 
   std::vector<int> electronCaloType; // will be translated to the vectors for each type at the end
@@ -256,6 +280,15 @@ SensitivityModule::process(datatools::things& workItem) {
   for (int i=0;i<1;i++)
     vertexPositionDelayedHit[i].SetXYZ(-9999,-9999,-9999);
   TVector3 trackDirection[2];
+  
+  std::vector<TVector3> electronVertices;
+  std::vector<TVector3> electronDirections;
+  std::vector<TVector3> electronProjVertices;
+  std::vector<TVector3> alphaVertices;
+  std::vector<TVector3> alphaDirections;
+  std::vector<TVector3> alphaProjVertices;
+  
+  
   double angleBetweenTracks;
   bool sameSideOfFoil=false;
   bool alphaCrossesFoil=false;
@@ -352,64 +385,26 @@ SensitivityModule::process(datatools::things& workItem) {
       {
 
         snemo::datamodel::particle_track track=trackData.get_particle(iParticle);
-        switch (track.get_charge())
+        TrackDetails trackDetails(track);
+        
+        // Populate info for gammas
+        if (trackDetails.IsGamma())
         {
-          case snemo::datamodel::particle_track::NEUTRAL:
-          {
-            gammaCandidates.push_back(track);
-            numberOfGammas++;
-            double thisEnergy=0;
-            double thisXwallEnergy=0;
-            double thisVetoEnergy=0;
-            double thisMainWallEnergy=0;
-            // Store the gamma candidate energies
-            double firstHitTime=-1.;
-            int firstHitType=0;
-            // Store the gamma candidate energies
-            for (unsigned int hit=0; hit<track.get_associated_calorimeter_hits().size();++hit)
-            {
-
-              const snemo::datamodel::calibrated_calorimeter_hit & calo_hit = track.get_associated_calorimeter_hits().at(hit).get();
-              double thisHitEnergy=calo_hit.get_energy();
-              thisEnergy +=  thisHitEnergy;
-              int hitType=calo_hit.get_geom_id().get_type();
-              if (hitType==mainWallHitType)
-                thisMainWallEnergy+= thisHitEnergy;
-              else if (hitType==xWallHitType)
-                thisXwallEnergy+= thisHitEnergy;
-              else if (hitType==gammaVetoHitType)
-                thisVetoEnergy+= thisHitEnergy;
-              else cout<<"WARNING: Unknown calorimeter type "<<hitType<<endl;
-
-              // Get the coordinates of the hit with the earliest time
-              if (firstHitTime==-1 || calo_hit.get_time()<firstHitTime)
-              {
-                firstHitTime=calo_hit.get_time();
-                // Find out which calo wall
-                firstHitType=hitType;
-              }
-            }
-
-            // Order the energies etc
-            int pos=InsertAndGetPosition(thisEnergy, gammaEnergies, true); // Add energy to ordered list of gamma energies (highest first) and get where in the list it was added
-
-            // Now add the type of the first hit to a vector
-            InsertAt(firstHitType, gammaCaloType, pos);
-            // And the fraction of the energy deposited in each wall
-            InsertAt(thisMainWallEnergy/thisEnergy, gammaMainwallFraction,pos);
-            InsertAt(thisXwallEnergy/thisEnergy, gammaXwallFraction,pos);
-            InsertAt(thisVetoEnergy/thisEnergy, gammaVetoFraction,pos);
-
-            continue;
-          }
-          case snemo::datamodel::particle_track::POSITIVE:
-          case snemo::datamodel::particle_track::NEGATIVE:
-          case snemo::datamodel::particle_track::UNDEFINED:
-          trackCount++;
-          break;
-          default:
+          numberOfGammas++;
+          int pos=InsertAndGetPosition(trackDetails.GetEnergy(), gammaEnergies, true); // Add energy to ordered list of gamma energies (highest first) and get where in the list it was added
+          // Now add the type of the first hit to a vector
+          InsertAt(trackDetails.GetFirstHitType(), gammaCaloType, pos);
+          // And the fraction of the energy deposited in each wall
+          InsertAt(trackDetails.GetMainwallFraction(), gammaMainwallFraction,pos);
+          InsertAt(trackDetails.GetXwallFraction(), gammaXwallFraction,pos);
+          InsertAt(trackDetails.GetVetoFraction(), gammaVetoFraction,pos);
+          InsertAt(track,gammaCandidates,pos);
           continue;
         }
+        
+        if (trackDetails.MakesTrack()) trackCount++;
+        else continue;
+
 
         // Now we have only charged particles remaining there are a few things we can do:
         // Identify electron candidates
@@ -417,132 +412,58 @@ SensitivityModule::process(datatools::things& workItem) {
         // Get edgemost inner vertex, regardless of whether they have associated calorimeters etc
 
         // First the vertex:
-        // Find the y coordinate for the innermost vertex that is nearest to
-        // the x-calo wall (large +/- y value). We could use this to identify
+
+        // Count the number of vertices on the foil
+        if (trackDetails.HasFoilVertex())verticesOnFoil++;
+        
+        // For all the tracks in the event, which one has its foilmost vertex nearest the tunnel/mountain
+        // edge of the foil? We could use this to identify
         // Events so near the edge they can't make a 3-cell track
-        double thisInnerVertex=0; // stores the y coordinate of the vertex closest to the source foil
-        double closestX=9999;
-        bool hasVertexOnFoil=false;
-        if (track.has_vertices()) // There doesn't seem to be any time ordering to the vertices
+
+        double thisY = trackDetails.GetFoilmostVertexY();
+        if (TMath::Abs(thisY) > TMath::Abs(edgemostVertex)) edgemostVertex = thisY;
+        
+        // For electron candidates, we need to store the energies
+        if (trackDetails.IsElectron())
         {
-          for (unsigned int iVertex=0; iVertex<track.get_vertices().size();++iVertex)
-          {
-            const geomtools::blur_spot & vertex = track.get_vertices().at(iVertex).get();
-            if (snemo::datamodel::particle_track::vertex_is_on_source_foil(vertex))
-            {
-              hasVertexOnFoil = true;
-            }
-            const geomtools::vector_3d & vertexTranslation = vertex.get_placement().get_translation();
-            // Get details for the vertex nearest the source foil, which is at x = 0
-            if (TMath::Abs(vertexTranslation.x()) < closestX) // this is nearer the foil
-            {
-              // So get its y position, which will tell us how near the xcalo wall it is
-              // Note there might be another vertex nearer the wall (the far end of the track) but we don't care, we want to know where the foil vertex is
-              thisInnerVertex=vertexTranslation.y();
-              closestX=vertexTranslation.x();
-            } // end for each vertex
-          }
-          // For the event, we are going to note the foil vertex that is nearest the edge of the detector
-          if(TMath::Abs(thisInnerVertex) > TMath::Abs(edgemostVertex))
-          edgemostVertex=thisInnerVertex;
-          if (hasVertexOnFoil) verticesOnFoil++;
-        } // End of scanning for the edgemost vertex
-
-        // Electron candidates are tracks with associated calorimeter hits, is this one?
-        if (track.has_associated_calorimeter_hits())
-        {
-          // Check it isn't delayed - we are looking for prompt electrons
-          const snemo::datamodel::tracker_trajectory & the_trajectory = track.get_trajectory();
-          const snemo::datamodel::tracker_cluster & the_cluster = the_trajectory.get_cluster();
-          if (the_cluster.is_delayed()>0) continue;
-          
-          electronCandidates.push_back(track);
-          double thisEnergy=0;
-          double thisXwallEnergy=0;
-          double thisVetoEnergy=0;
-          double thisMainWallEnergy=0;
-          double firstHitTime=-1.;
-          int firstHitType=0;
-          // Store the electron candidate energies
-          for (unsigned int hit=0; hit<track.get_associated_calorimeter_hits().size();++hit)
-          {
-
-            const snemo::datamodel::calibrated_calorimeter_hit & calo_hit = track.get_associated_calorimeter_hits().at(hit).get();
-            double thisHitEnergy=calo_hit.get_energy();
-            thisEnergy +=  thisHitEnergy;
-            int hitType=calo_hit.get_geom_id().get_type();
-            if (hitType==mainWallHitType)
-              thisMainWallEnergy+= thisHitEnergy;
-            else if (hitType==xWallHitType)
-              thisXwallEnergy+= thisHitEnergy;
-            else if (hitType==gammaVetoHitType)
-              thisVetoEnergy+= thisHitEnergy;
-            else cout<<"WARNING: Unknown calorimeter type "<<hitType<<endl;
-
-            // Get the coordinates of the hit with the earliest time
-            if (firstHitTime==-1 || calo_hit.get_time()<firstHitTime)
-            {
-              firstHitTime=calo_hit.get_time();
-              // Find out which calo wall
-              firstHitType=hitType;
-            }
-          }
-          bool hasVertexOnFoil = false;
-          // Now check if it has a foil vertex
-          if (track.has_vertices()) // There doesn't seem to be any time ordering to the vertices
-          {
-            for (unsigned int iVertex=0; iVertex<track.get_vertices().size();++iVertex)
-            {
-              const geomtools::blur_spot & vertex = track.get_vertices().at(iVertex).get();
-              if (snemo::datamodel::particle_track::vertex_is_on_source_foil(vertex))
-              {
-                hasVertexOnFoil = true;
-              }
-            }
-          }
-          int pos=InsertAndGetPosition(thisEnergy, electronEnergies, true); // Add energy to ordered list of gamma energies (highest first) and get where in the list it was added
-
-          // Now add the type of the first hit to a vector
-          InsertAt(firstHitType, electronCaloType, pos);
-          // And the track charge: 1=undefined, 4=positive, 8=negative
-          InsertAt((int)track.get_charge(),electronCharges,pos);
-          // And whether the track has a vertex on the foil
-          InsertAt(hasVertexOnFoil,electronsFromFoil,pos);
-          
-        } // End of electron candidates
+          int pos=InsertAndGetPosition(trackDetails.GetEnergy(), electronEnergies, true);
+          // Add energy to ordered list of electron energies (highest first)
+          // and get where in the list it was added
+          // Now add the type of the first hit to a vector (electrons are currently only allowed one hit)
+          // If we allow clustered hits for an electron, we can easily add it in this framework
+          InsertAt(trackDetails.GetFirstHitType(), electronCaloType, pos);
+          // Vector of electron candidates is ordered
+          InsertAt(track,electronCandidates,pos);
+          // And we also want a vector of electron charges (they might be positrons)
+          InsertAt(trackDetails.GetCharge(),electronCharges,pos);
+          // And whether or not they are from the foil
+          InsertAt(trackDetails.HasFoilVertex(),electronsFromFoil,pos);
+          // Vertices, directions, and vertices if projected back to foil
+          InsertAt(trackDetails.GetFoilmostVertex(),electronVertices,pos);
+          InsertAt(trackDetails.GetProjectedVertex(),electronProjVertices,pos);
+          InsertAt(trackDetails.GetDirection(),electronDirections,pos);
+          InsertAt(trackDetails.GetTrackLength(),electronTrackLengths,pos);
+          InsertAt(trackDetails.GetTrackerHitCount(),electronHitCounts,pos);
+        }
         
         // Now look for alpha candidates
-        if (track.has_trajectory())
+        if (trackDetails.IsAlpha())
         {
-          const snemo::datamodel::tracker_trajectory & the_trajectory = track.get_trajectory();
-          const snemo::datamodel::tracker_cluster & the_cluster = the_trajectory.get_cluster();
-
-          // Alpha candidates are undefined charge particles associated with a delayed hit and no associated hit
-          if (track.get_charge()==snemo::datamodel::particle_track::UNDEFINED && !track.has_associated_calorimeter_hits() && the_cluster.is_delayed()>0)
-          {
-            alphaCandidates.push_back(track);
-            trajClDelayedTime.push_back(the_cluster.get_hit(0).get_delayed_time());
-            delayedClusterHitCount = the_cluster.get_number_of_hits();
-            bool hasVertexOnFoil = false;
-            // Now check if it has a foil vertex
-            if (track.has_vertices()) // There doesn't seem to be any time ordering to the vertices
-            {
-              for (unsigned int iVertex=0; iVertex<track.get_vertices().size();++iVertex)
-              {
-                const geomtools::blur_spot & vertex = track.get_vertices().at(iVertex).get();
-                if (snemo::datamodel::particle_track::vertex_is_on_source_foil(vertex))
-                {
-                  hasVertexOnFoil = true;
-                }
-              }
-            }
-            if (hasVertexOnFoil) foilAlphaCount++; // We are just counting
-          }
+          alphaCandidates.push_back(track);
+          // Vertex and direction info
+          alphaVertices.push_back(trackDetails.GetFoilmostVertex());
+          alphaDirections.push_back(trackDetails.GetDirection());
+          alphaProjVertices.push_back(trackDetails.GetProjectedVertex());
+          if (trackDetails.HasFoilVertex()) foilAlphaCount++;
+          // Time of first delayed hit
+          trajClDelayedTime.push_back(trackDetails.GetDelayTime());
+          delayedClusterHitCount = trackDetails.GetTrackerHitCount(); // This will get overwritten if there are 2+ alphas, is that really what we want?
         }
-
       } // end for each particle
     } // end if has particles
 
+    // Now identify topologies
+    
     if (electronCandidates.size()==2 && trackCount==2)
     {
       is2electron = true;
@@ -1066,6 +987,55 @@ SensitivityModule::process(datatools::things& workItem) {
   sensitivity_.projection_distance_xy_=projectionDistanceXY;
   sensitivity_.foil_alpha_count_=foilAlphaCount;
   sensitivity_.electrons_from_foil_=electronsFromFoil;
+  sensitivity_.electron_track_lengths_=electronTrackLengths;
+  sensitivity_.electron_hit_counts_=electronHitCounts;
+  
+  // And the new vertex vectors - we can rely on these all being the same size of vectors as we populate them all together
+  // It does not restart the vector every time so we have to do that manually
+  sensitivity_.electron_vertex_x_.clear();
+  sensitivity_.electron_vertex_y_.clear();
+  sensitivity_.electron_vertex_z_.clear();
+  sensitivity_.electron_proj_vertex_x_.clear();
+  sensitivity_.electron_proj_vertex_y_.clear();
+  sensitivity_.electron_proj_vertex_z_.clear();
+  sensitivity_.electron_dir_x_.clear();
+  sensitivity_.electron_dir_y_.clear();
+  sensitivity_.electron_dir_z_.clear();
+  sensitivity_.alpha_vertex_x_.clear();
+  sensitivity_.alpha_vertex_y_.clear();
+  sensitivity_.alpha_vertex_z_.clear();
+  sensitivity_.alpha_proj_vertex_x_.clear();
+  sensitivity_.alpha_proj_vertex_y_.clear();
+  sensitivity_.alpha_proj_vertex_z_.clear();
+  sensitivity_.alpha_dir_x_.clear();
+  sensitivity_.alpha_dir_y_.clear();
+  sensitivity_.alpha_dir_z_.clear();
+  
+  for (int i=0;i<electronVertices.size();i++)
+  {
+    sensitivity_.electron_vertex_x_.push_back(electronVertices.at(i).X());
+    sensitivity_.electron_vertex_y_.push_back(electronVertices.at(i).Y());
+    sensitivity_.electron_vertex_z_.push_back(electronVertices.at(i).Z());
+    sensitivity_.electron_proj_vertex_x_.push_back(electronProjVertices.at(i).X());
+    sensitivity_.electron_proj_vertex_y_.push_back(electronProjVertices.at(i).Y());
+    sensitivity_.electron_proj_vertex_z_.push_back(electronProjVertices.at(i).Z());
+    sensitivity_.electron_dir_x_.push_back(electronDirections.at(i).X());
+    sensitivity_.electron_dir_y_.push_back(electronDirections.at(i).Y());
+    sensitivity_.electron_dir_z_.push_back(electronDirections.at(i).Z());
+  }
+
+  for (int i=0;i<alphaVertices.size();i++)
+  {
+    sensitivity_.alpha_vertex_x_.push_back(alphaVertices.at(i).X());
+    sensitivity_.alpha_vertex_y_.push_back(alphaVertices.at(i).Y());
+    sensitivity_.alpha_vertex_z_.push_back(alphaVertices.at(i).Z());
+    sensitivity_.alpha_proj_vertex_x_.push_back(alphaProjVertices.at(i).X());
+    sensitivity_.alpha_proj_vertex_y_.push_back(alphaProjVertices.at(i).Y());
+    sensitivity_.alpha_proj_vertex_z_.push_back(alphaProjVertices.at(i).Z());
+    sensitivity_.alpha_dir_x_.push_back(alphaDirections.at(i).X());
+    sensitivity_.alpha_dir_y_.push_back(alphaDirections.at(i).Y());
+    sensitivity_.alpha_dir_z_.push_back(alphaDirections.at(i).Z());
+  }
   
   // Vertex for other topologies
   if(is1e1alpha)
@@ -1261,3 +1231,4 @@ void SensitivityModule::reset() {
   filename_output_ = "sensitivity.root";
   this->_set_initialized(false);
 }
+
