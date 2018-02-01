@@ -118,21 +118,26 @@ filename_out : string[1] = "my_filename.root"
 
 **reco.highest_gamma_energy** : Highest energy gamma, may come from more than 1 calorimeter hit as specified by gamma tracko- clustering
 
-## Output tuple structure - Vertex positions (max 2 tracks)
+## Output tuple structure - Tracks and vertices
 
-**reco.first_vertex_x** : If there are two tracks, vertex x position of an arbitrary “first” track. Foil is at x ~ 0, main calo walls are at +/- 434.994 mm according to flvisualize. X direction is Italy to France. Unit is mm.
+**reco.electron_track_lengths** : Vector of all electron-candidate track lengths in mm. In descending order of energy.
 
-**reco.first_vertex_y** : If there are two tracks, vertex y position of an arbitrary “first” track. The y direction is horizontal, parallel to the foil, you can see it in top view (Tunnel to mountain). Unit is mm. X-wall is at +/- 2505.494 according to flvisualize. Unit is mm.
+**reco.electron_hit_counts** : Vector of the number of tracker hits in the track for each electron candidate. In descending order of energy.
 
-**reco.first_vertex_z** : If there are two tracks, vertex z position of an arbitrary “first” track. The z direction is vertical, parallel to the wires, you can see it in side view. Unit is mm.
 
-**reco.second_vertex_x** : If there are two tracks, vertex x position of an arbitrary “2nd” track. Foil is at x ~ 0, main calo walls are at +/- 434.994 mm according to flvisualize. Unit is mm.
+**reco.first_vertex_x** : If there are two tracks, vertex x position of an arbitrary “first” track. Foil is at x ~ 0, main calo walls are at +/- 434.994 mm according to flvisualize. X direction is Italy to France. Unit is mm. **Legacy: for 2 tracks only.**
 
-**reco.second_vertex_y** :  If there are two tracks, vertex y position of an arbitrary “2nd” track. The y direction is horizontal, parallel to the foil, you can see it in top view. Unit is mm.
+**reco.first_vertex_y** : If there are two tracks, vertex y position of an arbitrary “first” track. The y direction is horizontal, parallel to the foil, you can see it in top view (Tunnel to mountain). Unit is mm. X-wall is at +/- 2505.494 according to flvisualize. Unit is mm. **Legacy: for 2 tracks only.**
 
-**reco.second_vertex_z** : If there are two tracks, vertex z position of an arbitrary “2nd” track. The z direction is vertical, parallel to the wires, you can see it in side view. Unit is mm.
+**reco.first_vertex_z** : If there are two tracks, vertex z position of an arbitrary “first” track. The z direction is vertical, parallel to the wires, you can see it in side view. Unit is mm. **Legacy: for 2 tracks only.**
 
-**reco.first_proj_vertex_y; reco.first_proj_vertex_z; reco.second_proj_vertex_y; reco.second_proj_vertex_z** : Only for 2-electron or 1e-n-gamma topologies. If both tracks were linearly projected back to the foil (x=0), these would be their y and z coordinates.  Unit is mm.
+**reco.second_vertex_x** : If there are two tracks, vertex x position of an arbitrary “2nd” track. Foil is at x ~ 0, main calo walls are at +/- 434.994 mm according to flvisualize. Unit is mm. **Legacy: for 2 tracks only.**
+
+**reco.second_vertex_y** :  If there are two tracks, vertex y position of an arbitrary “2nd” track. The y direction is horizontal, parallel to the foil, you can see it in top view. Unit is mm. **Legacy: for 2 tracks only.**
+
+**reco.second_vertex_z** : If there are two tracks, vertex z position of an arbitrary “2nd” track. The z direction is vertical, parallel to the wires, you can see it in side view. Unit is mm. **Legacy: for 2 tracks only.**
+
+**reco.first_proj_vertex_y; reco.first_proj_vertex_z; reco.second_proj_vertex_y; reco.second_proj_vertex_z** : Only for 2-electron or 1e-n-gamma topologies. If both tracks were linearly projected back to the foil (x=0), these would be their y and z coordinates.  Unit is mm. **Legacy: for 2 tracks only.**
 
 **reco.vertex_separation** : Distance between the inner-most (nearest to the foil) vertices of the two tracks (only if there are 2 electron candidates).  Unit is mm.
 
@@ -140,11 +145,21 @@ filename_out : string[1] = "my_filename.root"
 
 **reco.projection_distance_xy** : How far in the xy plane we had to project our longest-projected track. Proxy for how many cells we are claiming to have a track, but where we didn’t reconstruct a hit. Could be replaced by a mapping of broken cells etc.
 
-**reco.vertices_on_foil** : If 2 tracks: number of tracks with a vertex on the foil.
+**reco.vertices_on_foil** : Number of charged particle tracks with a vertex on the foil.
 
 **reco.electrons_from_foil** : Vector of booleans corresponding to the electron candidates in descending order of energy. True if the electron candidate has a vertex on the source foil, false if not.
 
+**reco.electron_vertex_x(y,z)** : Vector of the x(y,z) position of the foilmost vertex of each electron candidate in descending order of energy.  The x direction is Italy to France (foil is at x ~ 0). The y direction is horizontal, parallel to the foil, you can see it in top view (tunnel to mountain).  The z direction is vertical (0 in the middle).
+
+**reco.electron_dir_x(y,z)** : Vector of the x(y,z) component of a unit vector in the initial direction of the electron track at its foilmost end, assuming it travels away from the foil. 1 vector entry for each electron candidate in descending order of energy.
+
+**reco.electron_proj_vertex_x(y,z)** : Vector of the x(y,z) component of where the track would intersect the foil, if projected back with a straight line in its initial direction (thus x should be 0 or negligible). In future, we should do helix projection. 1 vector entry for each electron candidate in descending order of energy.
+
+**reco.alpha_vertex_x(y,z), reco.alpha_dir_x(y,z), reco.alpha_proj_vertex_x(y,z)** : As with the electron equivalents, but for alphas. In this case there is no energy ordering (we don't measure alphas' energy). It is anticipated that there will rarely be more than 1 entry in these vectors except in the case of misreconstruction.
+
 **reco.edgemost_vertex** : Absolute y position (in mm) of the vertex that is nearest to the edge of the detector in the y dimension. This could possibly be used with small cluster identification to find events near the edge of the detector who have two tracks, each associated with a calorimeter and with close vertices on the foil, but for one of which there are only 2 hits (because it is too near the edge to pass through 3 cells).
+
+
 
 ## Output tuple structure - topologies
 
@@ -177,18 +192,23 @@ reco.foil_projected_external_probability** : As internal and external probabilit
 
 ## Output tuple structure - alpha finding
 
-**reco.delayed_track_time** : If a delayed track, the time of the first delayed hit in ns
-
-**reco.foil_alpha_count** : Number of alphas with a vertex identified as being on the source foil
+**reco.delayed_track_time** : If a delayed track, the time of the first delayed hit in ns. This is a vector with an entry for each reconstructed alpha candidate.
 
 **reco.delayed_cluster_hit_count** : Number of hits in the delayed cluster. Used to determine the correct
 metric for calculating the alpha track and alpha projected track lengths
+
+**reco.foil_alpha_count** : Number of alphas with a vertex identified as being on the source foil
 
 **reco.alpha_track_length** : Length in mm of the delayed track. This length is calculated in different ways depending on the number of hits in the delayed cluster. This is due to the way < 3 hit tracks are treated by alpha finder. More detail is provided in code comments.
 
 **reco.proj_track_length_alpha** : Length in mm of delayed track when it is projected back to the back to the electron projected foil vertex. Again this calculation is different for delayed tracks with 1,2 or >2 hits. See code for more detail.
 
 ## Output tuple structure - calorimeter positions
+
+**reco.electron_hits_mainwall;
+reco.electron_hits_xwall;
+reco.electron_hits_gveto** :
+Vectors corresponding to each reconstructed electron in the event, starting from the most energetic and decreasing in energy order. For each one, if the associated calo hit for that electron was in the specified wall, it will be true, otherwise false. (Therefore, for each entry number, only 1 of these three should be true).
 
 **reco.gamma_fractions_mainwall;
 reco.gamma_fractions_xwall;
@@ -199,11 +219,6 @@ Vectors corresponding to each reconstructed gamma in the event, starting from th
 reco.gamma_hits_xwall;
 reco.gamma_hits_gveto** :
 Vectors corresponding to each reconstructed gamma in the event, starting from the most energetic and decreasing in energy order. For each one, if the FIRST (in time) hit for that gamma was in the specified wall, it will be true, otherwise false. (Therefore, for each entry number, only 1 of these three should be true).
-
-**reco.electron_hits_mainwall;
-reco.electron_hits_xwall;
-reco.electron_hits_gveto** :
-Vectors corresponding to each reconstructed electron in the event, starting from the most energetic and decreasing in energy order. For each one, if the associated calo hit for that electron was in the specified wall, it will be true, otherwise false. (Therefore, for each entry number, only 1 of these three should be true).
 
 
 ## Output tuple structure - For simulation only
