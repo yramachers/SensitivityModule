@@ -158,6 +158,9 @@ class SensitivityModule : public dpp::base_module {
   TTree* tree_;
   SensitivityEventStorage sensitivity_;
 
+  // configurable data member
+  std::string filename_output_;
+
   // geometry service
   const geomtools::manager* geometry_manager_; //!< The geometry manager
 
