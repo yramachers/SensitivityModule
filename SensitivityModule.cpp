@@ -462,8 +462,9 @@ SensitivityModule::process(datatools::things& workItem) {
       } // end for each particle
     } // end if has particles
 
+    //---------------------------------------
     // Now identify topologies
-    
+    //---------------------------------------
     if (electronCandidates.size()==2 && trackCount==2)
     {
       is2electron = true;
@@ -483,12 +484,17 @@ SensitivityModule::process(datatools::things& workItem) {
       is1e1alpha = true;
     }
 
+    //---------------------------------------
+    // Combined info for the topologies
+    //---------------------------------------
+    
     // Calculate values for the 1e1alpha topology
     // Want to iterate over the tracks in the electronCandidate and alphaCandidate vectors
     if (is1e1alpha)
     {
       for (uint iParticle=0;iParticle<(electronCandidates.size());++iParticle)
       {
+        
         snemo::datamodel::particle_track track=electronCandidates.at(iParticle);
         if (track.has_trajectory())
         {
@@ -972,17 +978,8 @@ SensitivityModule::process(datatools::things& workItem) {
 
   // Vertices
   sensitivity_.vertices_on_foil_=verticesOnFoil;
-  sensitivity_.first_vertex_x_= vertexPosition[highEnergyIndex].X();
-  sensitivity_.first_vertex_y_= vertexPosition[highEnergyIndex].Y();
-  sensitivity_.first_vertex_z_= vertexPosition[highEnergyIndex].Z();
-  sensitivity_.second_vertex_x_= vertexPosition[lowEnergyIndex].X();
-  sensitivity_.second_vertex_y_= vertexPosition[lowEnergyIndex].Y();
-  sensitivity_.second_vertex_z_= vertexPosition[lowEnergyIndex].Z();
-  sensitivity_.vertex_separation_= (vertexPosition[0] - vertexPosition[1]).Mag();
-  sensitivity_.first_proj_vertex_y_= projectedVertexPosition[highEnergyIndex].Y();
-  sensitivity_.first_proj_vertex_z_= projectedVertexPosition[highEnergyIndex].Z();
-  sensitivity_.second_proj_vertex_y_= projectedVertexPosition[lowEnergyIndex].Y();
-  sensitivity_.second_proj_vertex_z_= projectedVertexPosition[lowEnergyIndex].Z();
+  
+
   sensitivity_.foil_projection_separation_= (projectedVertexPosition[0] - projectedVertexPosition[1]).Mag();
   sensitivity_.projection_distance_xy_=projectionDistanceXY;
   sensitivity_.foil_alpha_count_=foilAlphaCount;
@@ -991,7 +988,7 @@ SensitivityModule::process(datatools::things& workItem) {
   sensitivity_.electron_hit_counts_=electronHitCounts;
   
   // And the new vertex vectors - we can rely on these all being the same size of vectors as we populate them all together
-  // It does not restart the vector every time so we have to do that manually
+  // It does not restart the vector for each entry so we have to do that manually
   sensitivity_.electron_vertex_x_.clear();
   sensitivity_.electron_vertex_y_.clear();
   sensitivity_.electron_vertex_z_.clear();
@@ -1037,37 +1034,63 @@ SensitivityModule::process(datatools::things& workItem) {
     sensitivity_.alpha_dir_z_.push_back(alphaDirections.at(i).Z());
   }
   
-  // Vertex for other topologies
+  // Special vertex variables
+  if (is2electron || is1e1alpha)
+    // At the moment we only set these for these two topologies. This should possibly change
+  {
+    //First  vertex is the high-energy electron for 2e or the only electron for 1e1alpha
+    sensitivity_.first_proj_vertex_y_ = electronProjVertices.at(0).Y();
+    sensitivity_.first_proj_vertex_z_ = electronProjVertices.at(0).Z();
+    sensitivity_.first_vertex_x_ = electronVertices.at(0).X();
+    sensitivity_.first_vertex_y_ = electronVertices.at(0).Y();
+    sensitivity_.first_vertex_z_ = electronVertices.at(0).Z();
+    sensitivity_.first_track_direction_x_= electronDirections.at(0).X();
+    sensitivity_.first_track_direction_y_= electronDirections.at(0).Y();
+    sensitivity_.first_track_direction_z_= electronDirections.at(0).Z();
+  }
+  if (is2electron ) // The second one is the lower-energy electron
+  {
+    sensitivity_.second_proj_vertex_y_ = electronProjVertices.at(1).Y();
+    sensitivity_.second_proj_vertex_z_ = electronProjVertices.at(1).Z();
+    sensitivity_.second_vertex_x_ = electronVertices.at(1).X();
+    sensitivity_.second_vertex_y_ = electronVertices.at(1).Y();
+    sensitivity_.second_vertex_z_ = electronVertices.at(1).Z();
+    sensitivity_.second_track_direction_x_= electronDirections.at(1).X();
+    sensitivity_.second_track_direction_y_= electronDirections.at(1).Y();
+    sensitivity_.second_track_direction_z_= electronDirections.at(1).Z();
+    
+    sensitivity_.vertex_separation_= (electronVertices.at(0) - electronVertices.at(1)).Mag();
+    sensitivity_.foil_projection_separation_= (electronProjVertices.at(0) - electronProjVertices.at(1)).Mag();
+    sensitivity_.angle_between_tracks_= electronDirections.at(0).Angle(electronDirections.at(1));
+  }
   if(is1e1alpha)
   {
-    sensitivity_.alpha_track_length_=trackLengthAlpha;
+    sensitivity_.alpha_track_length_=trackLengthAlpha; // ### do we have alpha track length?
     sensitivity_.proj_track_length_alpha_=projectedTrackLengthAlpha;
-    sensitivity_.vertex_separation_= (vertexPositionElectron[0] - vertexPositionAlpha[0]).Mag();
-    sensitivity_.foil_projection_separation_= (projectedVertexPositionElectron[0] - projectedVertexPositionAlpha[0]).Mag();
-    //First projected vertex is the electron
-    sensitivity_.first_proj_vertex_y_=projectedVertexPositionElectron[0].Y();
-    sensitivity_.first_proj_vertex_z_=projectedVertexPositionElectron[0].Z();
-    //First projected vertex is the alpha
-    sensitivity_.second_proj_vertex_y_=projectedVertexPositionAlpha[0].Y();
-    sensitivity_.second_proj_vertex_z_=projectedVertexPositionAlpha[0].Z();
-    // First vertex is the electron
-    sensitivity_.first_vertex_x_= vertexPositionElectron[0].X();
-    sensitivity_.first_vertex_y_= vertexPositionElectron[0].Y();
-    sensitivity_.first_vertex_z_= vertexPositionElectron[0].Z();
+
     // Second vertex is the alpha
-    sensitivity_.second_vertex_x_= vertexPositionAlpha[0].X();
-    sensitivity_.second_vertex_y_= vertexPositionAlpha[0].Y();
-    sensitivity_.second_vertex_z_= vertexPositionAlpha[0].Z();
+    sensitivity_.second_proj_vertex_y_=alphaProjVertices.at(0).Y();
+    sensitivity_.second_proj_vertex_z_=alphaProjVertices.at(0).Z();
+    sensitivity_.second_vertex_x_= alphaVertices.at(0).X();
+    sensitivity_.second_vertex_y_= alphaVertices.at(0).Y();
+    sensitivity_.second_vertex_z_= alphaVertices.at(0).Z();
+    sensitivity_.second_track_direction_x_= alphaDirections.at(0).X();
+    sensitivity_.second_track_direction_y_= alphaDirections.at(0).Y();
+    sensitivity_.second_track_direction_z_= alphaDirections.at(0).Z();
+    
+      // Some two-particle topology calculations
+    sensitivity_.vertex_separation_=(electronVertices.at(0) - alphaVertices.at(0)).Mag();
+    sensitivity_.foil_projection_separation_= (electronProjVertices.at(0) - alphaProjVertices.at(0)).Mag();
+    sensitivity_.angle_between_tracks_= electronDirections.at(0).Angle(alphaDirections.at(0));
+
   }
+  
   // Track direction
-  sensitivity_.first_track_direction_x_= trackDirection[highEnergyIndex].X();
-  sensitivity_.first_track_direction_y_= trackDirection[highEnergyIndex].Y();
-  sensitivity_.first_track_direction_z_= trackDirection[highEnergyIndex].Z();
-  sensitivity_.second_track_direction_x_= trackDirection[lowEnergyIndex].X();
-  sensitivity_.second_track_direction_y_= trackDirection[lowEnergyIndex].Y();
-  sensitivity_.second_track_direction_z_= trackDirection[lowEnergyIndex].Z();
-  sensitivity_.same_side_of_foil_= ((trackDirection[0].X() * trackDirection[1].X()) > 0); // X components both positive or both negative
-  sensitivity_.angle_between_tracks_= trackDirection[highEnergyIndex].Angle(trackDirection[lowEnergyIndex]);
+  if (is2electron || is1e1alpha) // This works in either case
+    {
+      sensitivity_.same_side_of_foil_= ((sensitivity_.first_track_direction_x_ * sensitivity_.second_track_direction_x_) > 0); // X components both positive or both negative
+    }
+ 
 
   // Timing
   sensitivity_.calo_hit_time_separation_=TMath::Abs(timeDelay);

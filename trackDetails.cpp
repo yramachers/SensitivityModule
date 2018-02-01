@@ -149,9 +149,9 @@ bool TrackDetails::PopulateCaloHits()
 bool TrackDetails::SetFoilmostVertex()
 {
   if ( !hasTrack_) return false;
-  double thisInnerVertex=0; // stores the y coordinate of the vertex closest to the source foil
   double closestX=9999;
   bool hasVertexOnFoil=false;
+
   if (track_.has_vertices()) // There isn't any time ordering to the vertices so check them all
   {
     for (unsigned int iVertex=0; iVertex<track_.get_vertices().size();++iVertex)
@@ -165,7 +165,7 @@ bool TrackDetails::SetFoilmostVertex()
       // Get details for the vertex nearest the source foil, which is at x = 0
       if (TMath::Abs(vertexTranslation.x()) < closestX) // this is nearer the foil
       {
-        closestX=vertexTranslation.x();
+        closestX=TMath::Abs(vertexTranslation.x());
         foilmostVertex_.SetXYZ(vertexTranslation.x(),vertexTranslation.y(),vertexTranslation.z());
       } // end for each vertex
     }
