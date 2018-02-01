@@ -59,8 +59,14 @@ CMakeFiles                    cmake_install.cmake
 Makefile                      sensitivity.root
 ```
 
-The output file will always be called `sensitivity.root` so don’t run it multiple times concurrently in the same directory
+The output file will by default be called `sensitivity.root` so don’t run it multiple times concurrently in the same directory
 or you will overwrite the previous file! Use the falaise flreconstruct pipeline instructions to see how to integrate this module in your pipeline.
+
+There is now the option to configure the output filename in the module configuration file.
+The final two lines of the configuration file must read:
+
+[name="processing" type="SensitivityModule"]
+filename_out : string[1] = "my_filename.root"
 
 
 ## Output tuple structure - standard cuts
