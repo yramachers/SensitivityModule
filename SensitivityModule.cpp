@@ -11,10 +11,14 @@ int gammaVetoHitType=1252;
 using namespace std;
 DPP_MODULE_REGISTRATION_IMPLEMENT(SensitivityModule,"SensitivityModule");
 SensitivityModule::SensitivityModule() : dpp::base_module()
-{}
+{
+  filename_output_="sensitivity.root";
+}
+
 SensitivityModule::~SensitivityModule() {
   if (is_initialized()) this->reset();
 }
+
 void SensitivityModule::initialize(const datatools::properties& myConfig,
                                    datatools::service_manager& flServices,
                                    dpp::module_handle_dict_type& /*moduleDict*/){
@@ -31,9 +35,18 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
                 "Null pointer to geometry manager return by geometry_service");
   }
 
- // Use the method of PTD2ROOT to create a root file with just the branches we need for the sensitivity analysis
+  // Extract the filename_out key from the supplied config, if
+  // the key exists. datatools::properties throws an exception if
+  // the key isn't in the config, so catch this if thrown and don't do
+  // anything
+  try {
+    myConfig.fetch("filename_out",this->filename_output_);
+  } catch (std::logic_error& e) {
+  }
 
-  hfile_ = new TFile("sensitivity.root","RECREATE","Output file of Simulation data");
+  // Use the method of PTD2ROOT to create a root file with just the branches we need for the sensitivity analysis
+
+  hfile_ = new TFile(filename_output_.c_str(),"RECREATE","Output file of Simulation data");
   hfile_->cd();
   tree_ = new TTree("Sensitivity","Sensitivity");
   tree_->SetDirectory(hfile_);
@@ -1245,5 +1258,6 @@ void SensitivityModule::reset() {
 
   // clean up
   delete hfile_;
+  filename_output_ = "sensitivity.root";
   this->_set_initialized(false);
 }
