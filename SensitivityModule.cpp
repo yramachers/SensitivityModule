@@ -239,6 +239,7 @@ SensitivityModule::process(datatools::things& workItem) {
   std::vector<double> electronEnergies;
   std::vector<int> electronCharges;
   std::vector<double> electronTrackLengths;
+  std::vector<double> electronProjTrackLengths;
   std::vector<int> electronHitCounts;
   std::vector<bool> electronsFromFoil;
 
@@ -443,6 +444,7 @@ SensitivityModule::process(datatools::things& workItem) {
           InsertAt(trackDetails.GetProjectedVertex(),electronProjVertices,pos);
           InsertAt(trackDetails.GetDirection(),electronDirections,pos);
           InsertAt(trackDetails.GetTrackLength(),electronTrackLengths,pos);
+          InsertAt(trackDetails.GetProjectedTrackLength(),electronTrackLengths,pos);
           InsertAt(trackDetails.GetTrackerHitCount(),electronHitCounts,pos);
         }
         
@@ -699,44 +701,11 @@ SensitivityModule::process(datatools::things& workItem) {
         beta[iParticle] = TMath::Sqrt(calorimeterEnergy[iParticle] * (calorimeterEnergy[iParticle] + 2 * electronMass)) / (calorimeterEnergy[iParticle] +  electronMass);
 
         // Now get the two electrons' track lengths and some info about the track direction and vertex
-
-        if (track.has_trajectory())
-        {
-          trackLength[iParticle]=track.get_trajectory().get_pattern().get_shape().get_length();
-          trackLengthSigma[iParticle] = 0; // Uncertainty on track length is insignificant compared to energy and time resolution for electrons
-
-          // Get track direction info at the innermost end of the track, moving towards the outermost end
-          // This is harder than it sounds from the info available as we need to decide which end is which
-          // and which direction it is moving
-
-          const snemo::datamodel::base_trajectory_pattern & the_base_pattern = track.get_trajectory().get_pattern();
-          if (the_base_pattern.get_pattern_id()=="line") {
-            const geomtools::line_3d & the_shape = (const geomtools::line_3d&)the_base_pattern.get_shape();
-            // Find the two ends of the track
-            geomtools::vector_3d one_end=the_shape.get_first();
-            geomtools::vector_3d the_other_end=the_shape.get_last();
-            // which is which?
-            geomtools::vector_3d outermost_end = ((TMath::Abs(one_end.x()) >= TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
-            geomtools::vector_3d direction = the_shape.get_direction_on_curve(the_shape.get_first()); // Only the first stores the direction for a line track
-            int multiplier = (direction.x() * outermost_end.x() > 0)? 1: -1; // If the direction points the wrong way, reverse it
-            trackDirection[iParticle].SetXYZ(direction.x() * multiplier, direction.y() * multiplier, direction.z() * multiplier);
-          } //end line track
-          else {
-            const geomtools::helix_3d & the_shape = (const geomtools::helix_3d&)the_base_pattern.get_shape();
-            // Find the two ends of the track
-            geomtools::vector_3d one_end=the_shape.get_first();
-            geomtools::vector_3d the_other_end=the_shape.get_last();
-            // which is which?
-            geomtools::vector_3d foilmost_end = ((TMath::Abs(one_end.x()) < TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
-            geomtools::vector_3d outermost_end = ((TMath::Abs(one_end.x()) >= TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
-
-            geomtools::vector_3d direction = the_shape.get_direction_on_curve(foilmost_end); // Not the same on a curve
-            int multiplier = (direction.x() * outermost_end.x() > 0)? 1: -1; // If the direction points the wrong way, reverse it
-
-            trackDirection[iParticle].SetXYZ(direction.x() * multiplier, direction.y() * multiplier, direction.z() * multiplier);
-          }// end helix track
-        }// end if has_trajectory
-
+        trackLength[iParticle]=electronTrackLengths.at(iParticle);
+        trackLengthSigma[iParticle]=0;
+        trackDirection[iParticle]=electronDirections.at(iParticle);
+        projectedTrackLength[iParticle] = electronProjTrackLengths.at(iParticle);
+        // Use this to calculate what the time of flight SHOULD be
         double theoreticalTimeOfFlight=trackLength[iParticle]/ (beta[iParticle] * speedOfLight);
 
         // calculate total time variance for electron
@@ -969,8 +938,6 @@ SensitivityModule::process(datatools::things& workItem) {
   sensitivity_.lower_electron_energy_=lowerElectronEnergy;
   sensitivity_.higher_electron_energy_=higherElectronEnergy;
   sensitivity_.total_calorimeter_energy_ = totalCalorimeterEnergy;
-
-
 
   // "First" track is the higher energy one
   //uint highEnergyIndex =(calorimeterEnergy[0]>calorimeterEnergy[1] ? 0:1);

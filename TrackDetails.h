@@ -42,6 +42,7 @@ class TrackDetails{
   double delayTime_=0 ;
   int trackerHitCount_= 0;
   double trackLength_= 0;
+  double projectedLength_=0;
   
   bool hasTrack_=false;
   bool SetFoilmostVertex();
@@ -107,6 +108,7 @@ public:
   
   // For charged particle tracks
   double GetTrackLength();
+  double GetProjectedTrackLength();
   int GetTrackerHitCount();
   double GetDelayTime();
   

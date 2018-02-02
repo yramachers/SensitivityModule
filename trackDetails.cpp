@@ -216,10 +216,11 @@ bool TrackDetails::SetDirection()
 bool TrackDetails::SetProjectedVertex()
 {
   // Check that we have the necessary to do this calculation
-  if (GetFoilmostVertexX()==-9999 || GetDirectionX()==-9999 || !hasTrack_) return false;
+  if (GetFoilmostVertexX()==-9999 || GetDirectionX()==-9999 || GetTrackLength()==0 || !hasTrack_) return false;
   
   double scale=foilmostVertex_.X()/direction_.X();
   projectedVertex_=foilmostVertex_ - scale*direction_; // The second term is the extension to the track to project it back with a straight line
+  projectedLength_=trackLength_+TMath::Abs(scale*(direction_).Mag());
   // The direction has been chosen so it will always point outwards from the foil.
   // The calculation should always give a projected X coordinate of 0
   // But if it projects in such a way that the y or z values are outside the detector, we should return false
@@ -362,6 +363,11 @@ bool TrackDetails::HitGammaVeto()
 double TrackDetails::GetTrackLength()
 {
   return (trackLength_);
+}
+
+double TrackDetails::GetProjectedTrackLength()
+{
+  return (projectedLength_);
 }
 
 double TrackDetails::GetDelayTime()
