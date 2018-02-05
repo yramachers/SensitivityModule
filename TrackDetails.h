@@ -36,12 +36,16 @@ class TrackDetails{
   double vetoFraction_=0;
   int firstHitType_=-1;
   double energy_=0;
+  double energySigma_=0;
+  double time_=0;
+  double timeSigma_=0;
   int charge_=1;
   bool makesTrack_=false;
   snemo::datamodel::particle_track track_;
   double delayTime_=0 ;
   int trackerHitCount_= 0;
   double trackLength_= 0;
+  double trackLengthSigma_=0;
   double projectedLength_=0;
   
   bool hasTrack_=false;
@@ -83,6 +87,9 @@ public:
 
   // Energies
   double GetEnergy();
+  double GetEnergySigma();
+  double GetTime();
+  double GetTimeSigma();
   double GetMainwallFraction();
   double GetXwallFraction();
   double GetVetoFraction();
@@ -108,6 +115,7 @@ public:
   
   // For charged particle tracks
   double GetTrackLength();
+  double GetTrackLengthSigma();
   double GetProjectedTrackLength();
   int GetTrackerHitCount();
   double GetDelayTime();

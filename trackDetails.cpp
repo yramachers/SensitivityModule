@@ -104,6 +104,8 @@ bool TrackDetails::PopulateCaloHits()
   double thisMainWallEnergy=0;
   double firstHitTime=-1.;
   int firstHitType=0;
+  double energySigmaSq=0;
+
   // Store the gamma candidate energies
   // There could be multiple hits for a gamma so we need to add them up
   for (unsigned int hit=0; hit<track_.get_associated_calorimeter_hits().size();++hit)
@@ -111,9 +113,11 @@ bool TrackDetails::PopulateCaloHits()
     
     const snemo::datamodel::calibrated_calorimeter_hit & calo_hit = track_.get_associated_calorimeter_hits().at(hit).get();
     double thisHitEnergy=calo_hit.get_energy();
+    
     // Sum the energies
     thisEnergy +=  thisHitEnergy;
-    
+    energySigmaSq += calo_hit.get_sigma_energy()*calo_hit.get_sigma_energy(); // Add in quadrature
+
     // We want to know what fraction of the energy was deposited in each calo wall
     int hitType=calo_hit.get_geom_id().get_type();
     if (hitType==MAINWALL)
@@ -130,10 +134,13 @@ bool TrackDetails::PopulateCaloHits()
       firstHitTime=calo_hit.get_time();
       // Find out which calo wall it hit first
       firstHitType=hitType;
+      // We need the uncertainty in the first hit time
+      timeSigma_= calo_hit.get_sigma_time();
     }
   }
-  
+  time_=firstHitTime;
   energy_=thisEnergy;
+  energySigma_= TMath::Sqrt(energySigmaSq);
   firstHitType_=firstHitType;
   // And the fraction of the energy deposited in each wall
   mainwallFraction_=thisMainWallEnergy/thisEnergy;
@@ -324,6 +331,24 @@ double TrackDetails::GetEnergy()
   return (energy_);
 }
 
+// For anything that hits the calo wall
+double TrackDetails::GetEnergySigma()
+{
+  return (energySigma_);
+}
+
+// For anything that hits the calo wall
+double TrackDetails::GetTime()
+{
+  return (time_);
+}
+
+// For anything that hits the calo wall
+double TrackDetails::GetTimeSigma()
+{
+  return (timeSigma_);
+}
+
 // Fraction of particle's calo energy that is deposited in the main calo wall (France and Italy sides)
 double TrackDetails::GetMainwallFraction()
 {
@@ -363,6 +388,13 @@ bool TrackDetails::HitGammaVeto()
 double TrackDetails::GetTrackLength()
 {
   return (trackLength_);
+}
+
+double TrackDetails::GetTrackLengthSigma()
+{
+  if (this->IsElectron()) return 0;
+  if (this->IsGamma()) return 0.9;// Corresponds to 0.9 ns, justified in docdb 3799 page 10
+  return 0; // What is the track length uncertainty for an alpha? That can go here once we know
 }
 
 double TrackDetails::GetProjectedTrackLength()
