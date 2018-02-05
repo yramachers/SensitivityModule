@@ -297,7 +297,6 @@ SensitivityModule::process(datatools::things& workItem) {
   double projectionDistanceXY=0;
 
   uint highEnergyIndex = 0;
-
   // Grab calibrated data bank
   // Calibrated data will only be present in reconstructed files,
   // so wrap in a try block
@@ -444,7 +443,7 @@ SensitivityModule::process(datatools::things& workItem) {
           InsertAt(trackDetails.GetProjectedVertex(),electronProjVertices,pos);
           InsertAt(trackDetails.GetDirection(),electronDirections,pos);
           InsertAt(trackDetails.GetTrackLength(),electronTrackLengths,pos);
-          InsertAt(trackDetails.GetProjectedTrackLength(),electronTrackLengths,pos);
+          InsertAt(trackDetails.GetProjectedTrackLength(),electronProjTrackLengths,pos);
           InsertAt(trackDetails.GetTrackerHitCount(),electronHitCounts,pos);
         }
         
