@@ -663,203 +663,22 @@ SensitivityModule::process(datatools::things& workItem) {
     // For 2-electron and 1-e-n-gamma events, calculate some internal and external probablilities
     if (is2electron || is1engamma)
     {
-      double calorimeterTime[2];
-      double calorimeterTimeSigma[2];
-      double trackLength[2];
-      double calorimeterEnergy[2];
-      double calorimeterEnergySigma[2];
-      double beta[2];
-      double projectedTrackLength[2];
-      double trackLengthSigma[2];
-      double totalTimeVariance[2];
-      double projectedTimeVariance[2];
-      int particleIndex[2];
-
-      TrackDetails *particles[2];
-      particles[0]=&electronCandidateDetails.at(0); // first particle is always an electron
-      if (is2electron) // Second particle is the second electron
-      {
-        particles[1]=&electronCandidateDetails.at(1);
-      }
-      else // Second particle is the highest-energy gamma
-      {
-        particles[1]=&gammaCandidateDetails.at(0);
-        // Use the details of the electron and gamma tracks to set the track length for the gamma
-        beta[1]=1;
-      }
-      
-      
-      // Load electron information: there will be either 1 or 2 of these
-      for (uint iParticle=0;iParticle<electronCandidateDetails.size();++iParticle)
-      {
-        calorimeterTime[iParticle] = electronCandidateDetails.at(iParticle).GetTime();
-        calorimeterTimeSigma[iParticle] = electronCandidateDetails.at(iParticle).GetTimeSigma();
-        trackLength[iParticle]= electronCandidateDetails.at(iParticle).GetTrackLength();
-        calorimeterEnergy[iParticle] = electronCandidateDetails.at(iParticle).GetEnergy();
-        calorimeterEnergySigma[iParticle] = electronCandidateDetails.at(iParticle).GetEnergySigma();
-
-        // Calculate beta = speed as fraction of speed of light
-        beta[iParticle] = TMath::Sqrt(calorimeterEnergy[iParticle] * (calorimeterEnergy[iParticle] + 2 * electronMass)) / (calorimeterEnergy[iParticle] +  electronMass);
-
-        // Now get the two electrons' track lengths and some info about the track direction and vertex
-        trackLength[iParticle]=electronTrackLengths.at(iParticle);
-        trackLengthSigma[iParticle]=0;
-        trackDirection[iParticle]=electronDirections.at(iParticle);
-        projectedTrackLength[iParticle] = electronProjTrackLengths.at(iParticle);
-        // Use this to calculate what the time of flight SHOULD be
-        double theoreticalTimeOfFlight=trackLength[iParticle]/ (beta[iParticle] * speedOfLight);
-
-        // calculate total time variance for electron
-        totalTimeVariance[iParticle] =
-        pow(calorimeterTimeSigma[iParticle],2)
-        + pow(calorimeterEnergySigma[iParticle],2)
-        * pow((theoreticalTimeOfFlight*electronMass*electronMass),2)
-        / pow( (calorimeterEnergy[iParticle] * (calorimeterEnergy[iParticle]+electronMass) * (calorimeterEnergy[iParticle]+ 2 * electronMass) ),2);
-
-        double projTimeOfFlight=trackLength[iParticle]/ (beta[iParticle] * speedOfLight);
-        projectedTimeVariance[iParticle] =
-        pow(calorimeterTimeSigma[iParticle],2)
-        + pow(calorimeterEnergySigma[iParticle],2)
-        * pow((projTimeOfFlight*electronMass*electronMass),2)
-        / pow( (calorimeterEnergy[iParticle] * (calorimeterEnergy[iParticle]+electronMass) * (calorimeterEnergy[iParticle]+ 2 * electronMass) ),2);
-
-//
-//        // Now get some information about the vertices
-//        if (track.has_vertices()) // There doesn't seem to be any time ordering to the vertices
-//        {
-//
-//          for (unsigned int iVertex=0; iVertex<track.get_vertices().size();++iVertex)
-//          {
-//            const geomtools::blur_spot & vertex = track.get_vertices().at(iVertex).get();
-//            const geomtools::vector_3d & vertexTranslation = vertex.get_placement().get_translation();
-//            // Get details for the vertex nearest the source foil, which is at x = 0
-//            if (TMath::Abs(vertexTranslation.x()) < TMath::Abs(vertexPosition[iParticle].X())) // this is nearer the foil
-//            {
-//              vertexPosition[iParticle].SetXYZ(vertexTranslation.x(),vertexTranslation.y(),vertexTranslation.z());
-//            }
-//          }
-//        } // end if has vertices
-//
-//        // Calculate the projected vertex separation
-//        // Here's how we will do it: for each track, take the vertex nearest the foil
-//        // project it back onto the foil (x=0) using the direction of the direction at the first vertex
-//        // Then calculate the distance between the two projected vertices
-//        double scale=vertexPosition[iParticle].X()/trackDirection[iParticle].X();
-//        projectedVertexPosition[iParticle]=vertexPosition[iParticle] - scale*trackDirection[iParticle]; // The second term is the extension to the track to project it back with a straight line
-//        projectedTrackLength[iParticle]=trackLength[iParticle]+TMath::Abs(scale*(trackDirection[iParticle]).Mag()); // This gives a longer track as we add the extension
-//        // Get the larger of the 2 distances in the x-y plane between actual vertex and foil-projected vertex, to tell how much track was missed
-//        double thisProjectionDistance=(vertexPosition[iParticle]-projectedVertexPosition[iParticle]).Perp();
-//        if (thisProjectionDistance > projectionDistanceXY)projectionDistanceXY=thisProjectionDistance;
-      } // end for each electron
-
-      // Populate the electron energies
-      if (is2electron)
-      {
-          highEnergyIndex=(calorimeterEnergy[0]>calorimeterEnergy[1]?0:1);
-          higherElectronEnergy=calorimeterEnergy[highEnergyIndex];
-          lowerElectronEnergy=calorimeterEnergy[1-highEnergyIndex];
-          passesAssociatedCalorimeters=true;
-      }
-
-
-      // If it is a 1-e-n-gamma event, load the second array elements with the properties of the highest-energy gamma
-
+      std::vector<TrackDetails*> twoParticles;
+      twoParticles.push_back(&electronCandidateDetails.at(0));
       if (is1engamma)
       {
-        // Second particle is a photon so it goes at the speed of light
-        beta[1] = 1.;
-
-        // Find the highest-energy gamma
-        uint highEnergyIndex=0;
-        double topEnergy;
-        for (int i=0;i<gammaCandidates.size();i++)
-        {
-          snemo::datamodel::particle_track track = gammaCandidates.at(i);
-          double thisParticleEnergy=0;
-          // Sum the energies of all calorimeter hits for the particle
-          for (unsigned int hit=0; hit<track.get_associated_calorimeter_hits().size();++hit)
-          {
-            // Maybe there are some little hits but we only care for the highest-energy, and it needs to be above the threshold
-            const snemo::datamodel::calibrated_calorimeter_hit & calo_hit = track.get_associated_calorimeter_hits().at(hit).get();
-            thisParticleEnergy += calo_hit.get_energy();
-          }
-          if (thisParticleEnergy>topEnergy)
-          {
-            highEnergyIndex=i;
-            topEnergy=thisParticleEnergy;
-          }
-        }
-
-        snemo::datamodel::particle_track gamma = gammaCandidates.at(highEnergyIndex);
-
-        // Get the details of the highest-energy photon
-
-        // temporary variables for the calculation
-        double sigma2=0;
-        double earliest_time=9999999999;
-        geomtools::vector_3d loc (0,0,0);
-
-        // Get total energy and earliest hit time
-        for (unsigned int hit=0; hit<gamma.get_associated_calorimeter_hits().size();++hit)
-        {
-          // Maybe there are some little hits but we only care for the highest-energy, and it needs to be above the threshold
-          const snemo::datamodel::calibrated_calorimeter_hit & calo_hit = gamma.get_associated_calorimeter_hits().at(hit).get();
-
-          if (calo_hit.get_time() < earliest_time)
-          { // if this is the earliest hit then set the calo time to that and get its vertex position
-            calorimeterTime[1] = calo_hit.get_time();
-            calorimeterTimeSigma[1] = calo_hit.get_sigma_time();
-
-            // Get the vertex position
-            const geomtools::mapping & the_mapping = geometry_manager_->get_mapping();
-            // I got this from PTD2root but I don't understand what the two alternatives mean
-            if (! the_mapping.validate_id(calo_hit.get_geom_id())) {
-              std::vector<geomtools::geom_id> gids;
-              the_mapping.compute_matching_geom_id(calo_hit.get_geom_id(), gids); // front calo block = last entry
-              const geomtools::geom_info & info = the_mapping.get_geom_info(gids.back()); // in vector gids
-              loc  = info.get_world_placement().get_translation();
-            }
-            else {
-              const geomtools::geom_info & info = the_mapping.get_geom_info(calo_hit.get_geom_id());
-              loc  = info.get_world_placement().get_translation();
-            }
-
-          }
-          // Add the energies of all associated hits
-          calorimeterEnergy[1] += calo_hit.get_energy();
-          sigma2 += calo_hit.get_sigma_energy() * calo_hit.get_sigma_energy(); // Add energy sigmas in quadrature
-
-        }
-        calorimeterEnergySigma[1]=TMath::Sqrt(sigma2);
-
-        // Calculate track length using the inner vertex of the electron track
-        TVector3 gammaTrack (loc.x()-vertexPosition[0].X() ,loc.y()-vertexPosition[0].Y(),loc.z()-vertexPosition[0].Z());
-        double multiplier = 1.0/gammaTrack.Mag(); // To get a unit vector
-        trackDirection[1].SetXYZ(gammaTrack.x() * multiplier, gammaTrack.y() * multiplier, gammaTrack.z() * multiplier);
-        trackLength[1]=gammaTrack.Mag();
-        trackLengthSigma[1]=0.9; // Corresponds to 0.9 ns, justified in docdb 3799 page 10
-
-        // Calculate projected track length using the foil-projected vertex of the electron track
-        TVector3 projTrack(loc.x()-projectedVertexPosition[0].X() ,loc.y()-projectedVertexPosition[0].Y(),loc.z()-projectedVertexPosition[0].Z());
-        projectedTrackLength[1]=projTrack.Mag();
-
-        // Calculate total time variance and projected time variance for gamma
-        // Sum the variances from the time and track length uncertainties (track length uncertainty is already converted to time units)
-        totalTimeVariance[1] = calorimeterTimeSigma[1] * calorimeterTimeSigma[1] + trackLengthSigma[1] * trackLengthSigma[1];
-        projectedTimeVariance[1] = totalTimeVariance[1] ; // Doesn't depend on track length (at least in our current approximation)
-
-        higherElectronEnergy = calorimeterEnergy[0];
-        lowerElectronEnergy=0;
-
-      } // end if 1-e-n-gamma
-
-      // Calculate internal and external probabilities
-      CalculateProbabilities(internalProbability, externalProbability, &calorimeterEnergy[0],  &beta[0], &trackLength[0], &calorimeterTime[0], &totalTimeVariance[0] );
-      // Try again with the track to the foil-projected vertex
-      CalculateProbabilities(foilProjectedInternalProbability, foilProjectedExternalProbability,&calorimeterEnergy[0], &beta[0], &projectedTrackLength[0], &calorimeterTime[0], &projectedTimeVariance[0] );
-
+        // Set the track length for the highest-energy gamma based on it sharing a vertex with the electron
+        gammaCandidateDetails.at(0).GenerateGammaTrackLengths(&electronCandidateDetails.at(0));
+        twoParticles.push_back(&gammaCandidateDetails.at(0));
+      }
+      if (is2electron) // Second particle is the second electron
+      {
+        passesAssociatedCalorimeters=true;
+        twoParticles.push_back(&electronCandidateDetails.at(1));
+      }
+      CalculateProbabilities(internalProbability, externalProbability,  twoParticles,  false);
+      CalculateProbabilities(foilProjectedInternalProbability, foilProjectedExternalProbability,  twoParticles,  true);
     }// end if either 2e or 1e n gamma
-
   }// end try on PTD bank
   catch (std::logic_error& e) {
     std::cerr << "failed to grab PTD bank : " << e.what() << std::endl;
@@ -1113,6 +932,40 @@ SensitivityModule::process(datatools::things& workItem) {
   return dpp::base_module::PROCESS_OK;
 }
 
+void SensitivityModule::CalculateProbabilities(double &internalProbability, double &externalProbability, std::vector<TrackDetails*> twoParticles, bool projected)
+{
+    double trackLengths[2];
+    double theoreticalTimeOfFlight[2];
+    double internalEmissionTime[2];
+    double internalChiSquared;
+    double externalChiSquared;
+    for (int count=0;count<2;count++) // 2 particles
+    {
+      if (projected)
+      {
+        trackLengths[count]=twoParticles.at(count)->GetProjectedTrackLength();
+      }
+      else
+      {
+        trackLengths[count]=twoParticles.at(count)->GetTrackLength();
+      }
+      theoreticalTimeOfFlight[count] = trackLengths[count]/ (twoParticles.at(count)->GetBeta() * speedOfLight);
+      internalEmissionTime[count] = twoParticles.at(count)->GetTime() - theoreticalTimeOfFlight[count];
+    }
+    // Calculate internal probability: both particles emitted at the same time
+    // so time between the calo hits should be Time of flight 1 - Time of flight 2
+    
+    internalChiSquared = pow((internalEmissionTime[0] - internalEmissionTime[1]) ,2) / (twoParticles.at(0)->GetTotalTimeVariance() + twoParticles.at(1)->GetTotalTimeVariance()) ;
+    double integralForProbability=0;
+    internalProbability=this->ProbabilityFromChiSquared(internalChiSquared);
+    
+    // Calculate external probability: one particle travels to foil then the other travels from foil
+    // so time between the calo hits should be Time of flight  1 + Time of flight  2
+    externalChiSquared=pow(( TMath::Abs(twoParticles.at(0)->GetTime()-twoParticles.at(1)->GetTime()) - (theoreticalTimeOfFlight[0]+theoreticalTimeOfFlight[1]) ),2)/(twoParticles.at(0)->GetTotalTimeVariance() + twoParticles.at(1)->GetTotalTimeVariance()) ;
+    externalProbability=this->ProbabilityFromChiSquared(externalChiSquared);
+  
+}
+                             
 // Calculate probabilities for an internal (both particles from the foil) and external (calo 1 -> foil -> calo 2) topology
 void SensitivityModule::CalculateProbabilities(double &internalProbability, double &externalProbability, double *calorimeterEnergies,  double *betas, double *trackLengths, double *calorimeterTimes, double *totalTimeVariances )
 {

@@ -110,7 +110,7 @@ double TrackDetails::GenerateGammaTrackLengths(TrackDetails *electronTrack)
   // to the first calorimeter hit
   if (!IsGamma()) return -1;
   if (!electronTrack->IsElectron()) return -1;
-  if (foilmostVertex_.x()==-9999 || electronTrack->GetFoilmostVertexX()=-9999) return -1;
+  if (foilmostVertex_.x()==-9999 || electronTrack->GetFoilmostVertexX()==-9999) return -1;
   trackLength_=(foilmostVertex_ - electronTrack->GetFoilmostVertex()).Mag();
   projectedLength_=(foilmostVertex_ - electronTrack->GetProjectedVertex()).Mag();
   return trackLength_;
