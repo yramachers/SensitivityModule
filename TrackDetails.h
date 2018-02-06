@@ -49,6 +49,7 @@ class TrackDetails{
   double trackLength_= 0;
   double trackLengthSigma_=0;
   double projectedLength_=0;
+  const geomtools::manager* geometry_manager_;
 
   
   bool hasTrack_=false;
@@ -70,8 +71,8 @@ public:
   double MAXZ=1400; // This is not exact! Get the real value!
   
   TrackDetails();
-  TrackDetails(snemo::datamodel::particle_track track);
-  void Initialize(snemo::datamodel::particle_track track);
+  TrackDetails(const geomtools::manager* geometry_manager_, snemo::datamodel::particle_track track);
+  void Initialize(const geomtools::manager* geometry_manager_,snemo::datamodel::particle_track track);
   bool Initialize();
 
   bool IsGamma();
@@ -128,5 +129,7 @@ public:
   int GetTrackerHitCount();
   double GetDelayTime();
   
+  // For gammas, we need an electron track to calculate an assumed length
+  double GenerateGammaTrackLengths(TrackDetails *electronTrack);
 };
 

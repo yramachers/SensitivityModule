@@ -5,17 +5,18 @@ using namespace std;
 TrackDetails::TrackDetails()
 {};
 
-TrackDetails::TrackDetails(snemo::datamodel::particle_track track)
+TrackDetails::TrackDetails(const geomtools::manager* geometry_manager, snemo::datamodel::particle_track track)
 {
   
   foilmostVertex_.SetXYZ(-9999,-9999,-9999);
   direction_.SetXYZ(-9999,-9999,-9999);
   projectedVertex_.SetXYZ(-9999,-9999,-9999);
-  this->Initialize(track);
+  this->Initialize(geometry_manager, track);
 }
 
-void TrackDetails::Initialize(snemo::datamodel::particle_track track)
+void TrackDetails::Initialize(const geomtools::manager* geometry_manager, snemo::datamodel::particle_track track)
 {
+  geometry_manager_= geometry_manager;
   track_=track;
   hasTrack_=true;
   this->Initialize();
@@ -102,6 +103,19 @@ double TrackDetails::GetBeta()
   return TMath::Sqrt(energy_ * (energy_ + 2 * ELECTRON_MASS)) / (energy_ +  ELECTRON_MASS);
 }
 
+double TrackDetails::GenerateGammaTrackLengths(TrackDetails *electronTrack)
+{
+  // We don't know the length of a gamma track, but we can calculate a length
+  // from the assumed vertex (namely the vertex of an "associated" electron)
+  // to the first calorimeter hit
+  if (!IsGamma()) return -1;
+  if (!electronTrack->IsElectron()) return -1;
+  if (foilmostVertex_.x()==-9999 || electronTrack->GetFoilmostVertexX()=-9999) return -1;
+  trackLength_=(foilmostVertex_ - electronTrack->GetFoilmostVertex()).Mag();
+  projectedLength_=(foilmostVertex_ - electronTrack->GetProjectedVertex()).Mag();
+  return trackLength_;
+}
+
 double TrackDetails::GetProjectedTimeVariance()
 {
   return GetTotalTimeVariance(projectedLength_);
@@ -139,10 +153,12 @@ bool TrackDetails::PopulateCaloHits()
   int firstHitType=0;
   double energySigmaSq=0;
 
-  // Store the gamma candidate energies
+  // Store the energies
   // There could be multiple hits for a gamma so we need to add them up
   for (unsigned int hit=0; hit<track_.get_associated_calorimeter_hits().size();++hit)
   {
+    
+    geomtools::vector_3d loc (0,0,0);
     
     const snemo::datamodel::calibrated_calorimeter_hit & calo_hit = track_.get_associated_calorimeter_hits().at(hit).get();
     double thisHitEnergy=calo_hit.get_energy();
@@ -169,6 +185,24 @@ bool TrackDetails::PopulateCaloHits()
       firstHitType=hitType;
       // We need the uncertainty in the first hit time
       timeSigma_= calo_hit.get_sigma_time();
+      // For gammas, we will set the vertex to this calo hit
+      if (IsGamma())
+      {
+        // Get the vertex position
+        const geomtools::mapping & the_mapping = geometry_manager_->get_mapping();
+        // I got this from PTD2root but I don't understand what the two alternatives mean
+        if (! the_mapping.validate_id(calo_hit.get_geom_id())) {
+          std::vector<geomtools::geom_id> gids;
+          the_mapping.compute_matching_geom_id(calo_hit.get_geom_id(), gids); // front calo block = last entry
+          const geomtools::geom_info & info = the_mapping.get_geom_info(gids.back()); // in vector gids
+          loc  = info.get_world_placement().get_translation();
+        }
+        else {
+          const geomtools::geom_info & info = the_mapping.get_geom_info(calo_hit.get_geom_id());
+          loc  = info.get_world_placement().get_translation();
+        }
+        foilmostVertex_.SetXYZ(loc.x(),loc.y(),loc.z());
+      }
     }
   }
   time_=firstHitTime;

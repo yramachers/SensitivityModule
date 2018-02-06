@@ -389,7 +389,7 @@ SensitivityModule::process(datatools::things& workItem) {
       {
 
         snemo::datamodel::particle_track track=trackData.get_particle(iParticle);
-        TrackDetails trackDetails(track);
+        TrackDetails trackDetails(geometry_manager_, track);
         
         // Populate info for gammas
         if (trackDetails.IsGamma())
