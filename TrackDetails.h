@@ -23,6 +23,8 @@
 #include "falaise/snemo/datamodels/particle_track_data.h"
 
 
+const double ELECTRON_MASS=0.5109989461; // From pdg, in MeV
+const double LIGHT_SPEED=299792458 * 1e-9 * 1000; // Millimeters per nanosecond
 
 class TrackDetails{
   TVector3 foilmostVertex_ ;
@@ -47,12 +49,14 @@ class TrackDetails{
   double trackLength_= 0;
   double trackLengthSigma_=0;
   double projectedLength_=0;
+
   
   bool hasTrack_=false;
   bool SetFoilmostVertex();
   bool SetDirection();
   bool SetProjectedVertex();
   bool PopulateCaloHits();
+  double GetTotalTimeVariance(double thisTrackLength);
   
 public:
 
@@ -60,6 +64,7 @@ public:
   int MAINWALL=1302;
   int XWALL=1232;
   int GVETO=1252;
+  
   
   double MAXY=2505.494; // This is the calo position but maybe it should be the end of the actual foils?
   double MAXZ=1400; // This is not exact! Get the real value!
@@ -93,7 +98,10 @@ public:
   double GetMainwallFraction();
   double GetXwallFraction();
   double GetVetoFraction();
-
+  double GetBeta(); // Fraction of light speed
+  double GetProjectedTimeVariance();
+  double GetTotalTimeVariance();
+  
   // Foilmost vertex
   double GetFoilmostVertexX();
   double GetFoilmostVertexY();

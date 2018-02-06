@@ -234,6 +234,10 @@ SensitivityModule::process(datatools::things& workItem) {
   std::vector<snemo::datamodel::particle_track> gammaCandidates;
   std::vector<snemo::datamodel::particle_track> electronCandidates;
   std::vector<snemo::datamodel::particle_track> alphaCandidates;
+  std::vector<TrackDetails> gammaCandidateDetails;
+  std::vector<TrackDetails> electronCandidateDetails;
+  std::vector<TrackDetails> alphaCandidateDetails;
+
 
   std::vector<double> gammaEnergies;
   std::vector<double> electronEnergies;
@@ -399,6 +403,7 @@ SensitivityModule::process(datatools::things& workItem) {
           InsertAt(trackDetails.GetXwallFraction(), gammaXwallFraction,pos);
           InsertAt(trackDetails.GetVetoFraction(), gammaVetoFraction,pos);
           InsertAt(track,gammaCandidates,pos);
+          InsertAt(trackDetails,gammaCandidateDetails,pos);
           continue;
         }
         
@@ -434,6 +439,7 @@ SensitivityModule::process(datatools::things& workItem) {
           InsertAt(trackDetails.GetFirstHitType(), electronCaloType, pos);
           // Vector of electron candidates is ordered
           InsertAt(track,electronCandidates,pos);
+          InsertAt(trackDetails,electronCandidateDetails,pos);
           // And we also want a vector of electron charges (they might be positrons)
           InsertAt(trackDetails.GetCharge(),electronCharges,pos);
           // And whether or not they are from the foil
@@ -451,6 +457,7 @@ SensitivityModule::process(datatools::things& workItem) {
         if (trackDetails.IsAlpha())
         {
           alphaCandidates.push_back(track);
+          alphaCandidateDetails.push_back(trackDetails);
           // Vertex and direction info
           alphaVertices.push_back(trackDetails.GetFoilmostVertex());
           alphaDirections.push_back(trackDetails.GetDirection());
@@ -668,33 +675,28 @@ SensitivityModule::process(datatools::things& workItem) {
       double projectedTimeVariance[2];
       int particleIndex[2];
 
-      // Load electron information: there will be either 1 or 2 of these
-      for (uint iParticle=0;iParticle<electronCandidates.size();++iParticle)
+      TrackDetails *particles[2];
+      particles[0]=&electronCandidateDetails.at(0); // first particle is always an electron
+      if (is2electron) // Second particle is the second electron
       {
-        calorimeterTime[iParticle]=0;
-        calorimeterTimeSigma[iParticle]=0;
-        trackLength[iParticle]=0;
-        calorimeterEnergy[iParticle]=0;
-        calorimeterEnergySigma[iParticle]=0;
-        double sigma2=0;
-        snemo::datamodel::particle_track track=electronCandidates.at(iParticle);
-        double earliest_time=9999999999;
-        // Get the calorimeter hit times and energies from the array of associated hits
-        for (unsigned int hit=0; hit<track.get_associated_calorimeter_hits().size();++hit)
-        {
-          // Maybe there are some little hits but we only care for the highest-energy, and it needs to be above the threshold
-          const snemo::datamodel::calibrated_calorimeter_hit & calo_hit = track.get_associated_calorimeter_hits().at(hit).get();
-
-          if (calo_hit.get_time() < earliest_time)
-          { // if this is the earliest hit then set the calo time to that. Add the energies of all associated hits
-            calorimeterTime[iParticle] = calo_hit.get_time();
-            calorimeterTimeSigma[iParticle] = calo_hit.get_sigma_time();
-          }
-          calorimeterEnergy[iParticle] += calo_hit.get_energy();
-          sigma2 += calo_hit.get_sigma_energy()*calo_hit.get_sigma_energy(); // Add in quadrature
-
-        } // for each hit
-        calorimeterEnergySigma[iParticle] = TMath::Sqrt(sigma2);
+        particles[1]=&electronCandidateDetails.at(1);
+      }
+      else // Second particle is the highest-energy gamma
+      {
+        particles[1]=&gammaCandidateDetails.at(0);
+        // Use the details of the electron and gamma tracks to set the track length for the gamma
+        beta[1]=1;
+      }
+      
+      
+      // Load electron information: there will be either 1 or 2 of these
+      for (uint iParticle=0;iParticle<electronCandidateDetails.size();++iParticle)
+      {
+        calorimeterTime[iParticle] = electronCandidateDetails.at(iParticle).GetTime();
+        calorimeterTimeSigma[iParticle] = electronCandidateDetails.at(iParticle).GetTimeSigma();
+        trackLength[iParticle]= electronCandidateDetails.at(iParticle).GetTrackLength();
+        calorimeterEnergy[iParticle] = electronCandidateDetails.at(iParticle).GetEnergy();
+        calorimeterEnergySigma[iParticle] = electronCandidateDetails.at(iParticle).GetEnergySigma();
 
         // Calculate beta = speed as fraction of speed of light
         beta[iParticle] = TMath::Sqrt(calorimeterEnergy[iParticle] * (calorimeterEnergy[iParticle] + 2 * electronMass)) / (calorimeterEnergy[iParticle] +  electronMass);
@@ -721,33 +723,33 @@ SensitivityModule::process(datatools::things& workItem) {
         * pow((projTimeOfFlight*electronMass*electronMass),2)
         / pow( (calorimeterEnergy[iParticle] * (calorimeterEnergy[iParticle]+electronMass) * (calorimeterEnergy[iParticle]+ 2 * electronMass) ),2);
 
-
-        // Now get some information about the vertices
-        if (track.has_vertices()) // There doesn't seem to be any time ordering to the vertices
-        {
-
-          for (unsigned int iVertex=0; iVertex<track.get_vertices().size();++iVertex)
-          {
-            const geomtools::blur_spot & vertex = track.get_vertices().at(iVertex).get();
-            const geomtools::vector_3d & vertexTranslation = vertex.get_placement().get_translation();
-            // Get details for the vertex nearest the source foil, which is at x = 0
-            if (TMath::Abs(vertexTranslation.x()) < TMath::Abs(vertexPosition[iParticle].X())) // this is nearer the foil
-            {
-              vertexPosition[iParticle].SetXYZ(vertexTranslation.x(),vertexTranslation.y(),vertexTranslation.z());
-            }
-          }
-        } // end if has vertices
-
-        // Calculate the projected vertex separation
-        // Here's how we will do it: for each track, take the vertex nearest the foil
-        // project it back onto the foil (x=0) using the direction of the direction at the first vertex
-        // Then calculate the distance between the two projected vertices
-        double scale=vertexPosition[iParticle].X()/trackDirection[iParticle].X();
-        projectedVertexPosition[iParticle]=vertexPosition[iParticle] - scale*trackDirection[iParticle]; // The second term is the extension to the track to project it back with a straight line
-        projectedTrackLength[iParticle]=trackLength[iParticle]+TMath::Abs(scale*(trackDirection[iParticle]).Mag()); // This gives a longer track as we add the extension
-        // Get the larger of the 2 distances in the x-y plane between actual vertex and foil-projected vertex, to tell how much track was missed
-        double thisProjectionDistance=(vertexPosition[iParticle]-projectedVertexPosition[iParticle]).Perp();
-        if (thisProjectionDistance > projectionDistanceXY)projectionDistanceXY=thisProjectionDistance;
+//
+//        // Now get some information about the vertices
+//        if (track.has_vertices()) // There doesn't seem to be any time ordering to the vertices
+//        {
+//
+//          for (unsigned int iVertex=0; iVertex<track.get_vertices().size();++iVertex)
+//          {
+//            const geomtools::blur_spot & vertex = track.get_vertices().at(iVertex).get();
+//            const geomtools::vector_3d & vertexTranslation = vertex.get_placement().get_translation();
+//            // Get details for the vertex nearest the source foil, which is at x = 0
+//            if (TMath::Abs(vertexTranslation.x()) < TMath::Abs(vertexPosition[iParticle].X())) // this is nearer the foil
+//            {
+//              vertexPosition[iParticle].SetXYZ(vertexTranslation.x(),vertexTranslation.y(),vertexTranslation.z());
+//            }
+//          }
+//        } // end if has vertices
+//
+//        // Calculate the projected vertex separation
+//        // Here's how we will do it: for each track, take the vertex nearest the foil
+//        // project it back onto the foil (x=0) using the direction of the direction at the first vertex
+//        // Then calculate the distance between the two projected vertices
+//        double scale=vertexPosition[iParticle].X()/trackDirection[iParticle].X();
+//        projectedVertexPosition[iParticle]=vertexPosition[iParticle] - scale*trackDirection[iParticle]; // The second term is the extension to the track to project it back with a straight line
+//        projectedTrackLength[iParticle]=trackLength[iParticle]+TMath::Abs(scale*(trackDirection[iParticle]).Mag()); // This gives a longer track as we add the extension
+//        // Get the larger of the 2 distances in the x-y plane between actual vertex and foil-projected vertex, to tell how much track was missed
+//        double thisProjectionDistance=(vertexPosition[iParticle]-projectedVertexPosition[iParticle]).Perp();
+//        if (thisProjectionDistance > projectionDistanceXY)projectionDistanceXY=thisProjectionDistance;
       } // end for each electron
 
       // Populate the electron energies

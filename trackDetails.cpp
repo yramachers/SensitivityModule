@@ -95,6 +95,39 @@ bool TrackDetails::Initialize()
   return false; // Not an alpha or an electron, what could it be?
 } // end Initialize
 
+double TrackDetails::GetBeta()
+{
+  if (IsGamma()) return 1.; // Moves at the speed of light
+  if (energy_==0) return 0; // Don't know this if we don't have calo hits
+  return TMath::Sqrt(energy_ * (energy_ + 2 * ELECTRON_MASS)) / (energy_ +  ELECTRON_MASS);
+}
+
+double TrackDetails::GetProjectedTimeVariance()
+{
+  return GetTotalTimeVariance(projectedLength_);
+}
+double TrackDetails::GetTotalTimeVariance()
+{
+  return GetTotalTimeVariance(trackLength_);
+}
+double TrackDetails::GetTotalTimeVariance(double thisTrackLength)
+{
+  double totalTimeVariance = 0;
+  if (IsElectron())
+  {
+    double theoreticalTimeOfFlight=thisTrackLength/ (GetBeta() * LIGHT_SPEED);
+    totalTimeVariance = pow(timeSigma_,2)
+    + pow(energySigma_,2)
+    * pow((theoreticalTimeOfFlight*ELECTRON_MASS*ELECTRON_MASS),2)
+    / pow( (energy_ * (energy_+ELECTRON_MASS) * (energy_+ 2 * ELECTRON_MASS) ),2);
+  }
+  if (IsGamma())
+  {
+      totalTimeVariance = timeSigma_ * timeSigma_ + trackLengthSigma_ * trackLengthSigma_;
+  }
+  return 0;
+}
+
 bool TrackDetails::PopulateCaloHits()
 {
   if ( !hasTrack_) return false;
