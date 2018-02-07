@@ -954,16 +954,24 @@ void SensitivityModule::CalculateProbabilities(double &internalProbability, doub
     }
     // Calculate internal probability: both particles emitted at the same time
     // so time between the calo hits should be Time of flight 1 - Time of flight 2
+  
+  // Calculate external probability: one particle travels to foil then the other travels from foil
+  // so time between the calo hits should be Time of flight  1 + Time of flight  2
+  if (projected)
+  {
+    internalChiSquared = pow((internalEmissionTime[0] - internalEmissionTime[1]) ,2) / (twoParticles.at(0)->GetProjectedTimeVariance() + twoParticles.at(1)->GetProjectedTimeVariance()) ;
+    
+    externalChiSquared=pow(( TMath::Abs(twoParticles.at(0)->GetTime()-twoParticles.at(1)->GetTime()) - (theoreticalTimeOfFlight[0]+theoreticalTimeOfFlight[1]) ),2)/ (twoParticles.at(0)->GetProjectedTimeVariance() + twoParticles.at(1)->GetProjectedTimeVariance()) ;
+  }else
+  {
     
     internalChiSquared = pow((internalEmissionTime[0] - internalEmissionTime[1]) ,2) / (twoParticles.at(0)->GetTotalTimeVariance() + twoParticles.at(1)->GetTotalTimeVariance()) ;
-    double integralForProbability=0;
-    internalProbability=this->ProbabilityFromChiSquared(internalChiSquared);
-    
-    // Calculate external probability: one particle travels to foil then the other travels from foil
-    // so time between the calo hits should be Time of flight  1 + Time of flight  2
     externalChiSquared=pow(( TMath::Abs(twoParticles.at(0)->GetTime()-twoParticles.at(1)->GetTime()) - (theoreticalTimeOfFlight[0]+theoreticalTimeOfFlight[1]) ),2)/(twoParticles.at(0)->GetTotalTimeVariance() + twoParticles.at(1)->GetTotalTimeVariance()) ;
-    externalProbability=this->ProbabilityFromChiSquared(externalChiSquared);
-  
+  }
+  // Integrate a chisquare distribution to the value if the internal/external chi square
+  // to get the probability of it being an internal or external event
+  internalProbability=this->ProbabilityFromChiSquared(internalChiSquared);
+  externalProbability=this->ProbabilityFromChiSquared(externalChiSquared);
 }
                              
 // Calculate probabilities for an internal (both particles from the foil) and external (calo 1 -> foil -> calo 2) topology
@@ -1060,7 +1068,10 @@ double SensitivityModule::ProbabilityFromChiSquared(double chiSquared)
   double * params = 0;
   if (chiSquared>3000) chiSquared=3000; // The integral appears to not work properly at values bigger than this, eventually tending to 0 rather than root2pi and thus giving a misleading probability of 1 when it should be almost 0.
   double integral=function_to_integrate->Integral(0,chiSquared,1e-6);
-  return (1. - 1./TMath::Sqrt(2.*TMath::Pi()) * integral);
+  double result = (1. - 1./TMath::Sqrt(2.*TMath::Pi()) * integral);
+  // Fix rounding errors where result can be a tiny negative number
+  if (result < 0 ) return 0 ;
+  return result;
 }
 
 //! [SensitivityModule::reset]

@@ -139,7 +139,8 @@ double TrackDetails::GetTotalTimeVariance(double thisTrackLength)
   {
       totalTimeVariance = timeSigma_ * timeSigma_ + trackLengthSigma_ * trackLengthSigma_;
   }
-  return 0;
+
+  return totalTimeVariance;
 }
 
 bool TrackDetails::PopulateCaloHits()
