@@ -5,17 +5,18 @@ using namespace std;
 TrackDetails::TrackDetails()
 {};
 
-TrackDetails::TrackDetails(snemo::datamodel::particle_track track)
+TrackDetails::TrackDetails(const geomtools::manager* geometry_manager, snemo::datamodel::particle_track track)
 {
   
   foilmostVertex_.SetXYZ(-9999,-9999,-9999);
   direction_.SetXYZ(-9999,-9999,-9999);
   projectedVertex_.SetXYZ(-9999,-9999,-9999);
-  this->Initialize(track);
+  this->Initialize(geometry_manager, track);
 }
 
-void TrackDetails::Initialize(snemo::datamodel::particle_track track)
+void TrackDetails::Initialize(const geomtools::manager* geometry_manager, snemo::datamodel::particle_track track)
 {
+  geometry_manager_= geometry_manager;
   track_=track;
   hasTrack_=true;
   this->Initialize();
@@ -95,6 +96,53 @@ bool TrackDetails::Initialize()
   return false; // Not an alpha or an electron, what could it be?
 } // end Initialize
 
+double TrackDetails::GetBeta()
+{
+  if (IsGamma()) return 1.; // Moves at the speed of light
+  if (energy_==0) return 0; // Don't know this if we don't have calo hits
+  return TMath::Sqrt(energy_ * (energy_ + 2 * ELECTRON_MASS)) / (energy_ +  ELECTRON_MASS);
+}
+
+double TrackDetails::GenerateGammaTrackLengths(TrackDetails *electronTrack)
+{
+  // We don't know the length of a gamma track, but we can calculate a length
+  // from the assumed vertex (namely the vertex of an "associated" electron)
+  // to the first calorimeter hit
+  if (!IsGamma()) return -1;
+  if (!electronTrack->IsElectron()) return -1;
+  if (foilmostVertex_.x()==-9999 || electronTrack->GetFoilmostVertexX()==-9999) return -1;
+  trackLength_=(foilmostVertex_ - electronTrack->GetFoilmostVertex()).Mag();
+  projectedLength_=(foilmostVertex_ - electronTrack->GetProjectedVertex()).Mag();
+  return trackLength_;
+}
+
+double TrackDetails::GetProjectedTimeVariance()
+{
+  return GetTotalTimeVariance(projectedLength_);
+}
+double TrackDetails::GetTotalTimeVariance()
+{
+  return GetTotalTimeVariance(trackLength_);
+}
+double TrackDetails::GetTotalTimeVariance(double thisTrackLength)
+{
+  double totalTimeVariance = 0;
+  if (IsElectron())
+  {
+    double theoreticalTimeOfFlight=thisTrackLength/ (GetBeta() * LIGHT_SPEED);
+    totalTimeVariance = pow(timeSigma_,2)
+    + pow(energySigma_,2)
+    * pow((theoreticalTimeOfFlight*ELECTRON_MASS*ELECTRON_MASS),2)
+    / pow( (energy_ * (energy_+ELECTRON_MASS) * (energy_+ 2 * ELECTRON_MASS) ),2);
+  }
+  if (IsGamma())
+  {
+      totalTimeVariance = timeSigma_ * timeSigma_ + trackLengthSigma_ * trackLengthSigma_;
+  }
+
+  return totalTimeVariance;
+}
+
 bool TrackDetails::PopulateCaloHits()
 {
   if ( !hasTrack_) return false;
@@ -104,16 +152,22 @@ bool TrackDetails::PopulateCaloHits()
   double thisMainWallEnergy=0;
   double firstHitTime=-1.;
   int firstHitType=0;
-  // Store the gamma candidate energies
+  double energySigmaSq=0;
+
+  // Store the energies
   // There could be multiple hits for a gamma so we need to add them up
   for (unsigned int hit=0; hit<track_.get_associated_calorimeter_hits().size();++hit)
   {
     
+    geomtools::vector_3d loc (0,0,0);
+    
     const snemo::datamodel::calibrated_calorimeter_hit & calo_hit = track_.get_associated_calorimeter_hits().at(hit).get();
     double thisHitEnergy=calo_hit.get_energy();
+    
     // Sum the energies
     thisEnergy +=  thisHitEnergy;
-    
+    energySigmaSq += calo_hit.get_sigma_energy()*calo_hit.get_sigma_energy(); // Add in quadrature
+
     // We want to know what fraction of the energy was deposited in each calo wall
     int hitType=calo_hit.get_geom_id().get_type();
     if (hitType==MAINWALL)
@@ -130,10 +184,31 @@ bool TrackDetails::PopulateCaloHits()
       firstHitTime=calo_hit.get_time();
       // Find out which calo wall it hit first
       firstHitType=hitType;
+      // We need the uncertainty in the first hit time
+      timeSigma_= calo_hit.get_sigma_time();
+      // For gammas, we will set the vertex to this calo hit
+      if (IsGamma())
+      {
+        // Get the vertex position
+        const geomtools::mapping & the_mapping = geometry_manager_->get_mapping();
+        // I got this from PTD2root but I don't understand what the two alternatives mean
+        if (! the_mapping.validate_id(calo_hit.get_geom_id())) {
+          std::vector<geomtools::geom_id> gids;
+          the_mapping.compute_matching_geom_id(calo_hit.get_geom_id(), gids); // front calo block = last entry
+          const geomtools::geom_info & info = the_mapping.get_geom_info(gids.back()); // in vector gids
+          loc  = info.get_world_placement().get_translation();
+        }
+        else {
+          const geomtools::geom_info & info = the_mapping.get_geom_info(calo_hit.get_geom_id());
+          loc  = info.get_world_placement().get_translation();
+        }
+        foilmostVertex_.SetXYZ(loc.x(),loc.y(),loc.z());
+      }
     }
   }
-  
+  time_=firstHitTime;
   energy_=thisEnergy;
+  energySigma_= TMath::Sqrt(energySigmaSq);
   firstHitType_=firstHitType;
   // And the fraction of the energy deposited in each wall
   mainwallFraction_=thisMainWallEnergy/thisEnergy;
@@ -149,9 +224,9 @@ bool TrackDetails::PopulateCaloHits()
 bool TrackDetails::SetFoilmostVertex()
 {
   if ( !hasTrack_) return false;
-  double thisInnerVertex=0; // stores the y coordinate of the vertex closest to the source foil
   double closestX=9999;
   bool hasVertexOnFoil=false;
+
   if (track_.has_vertices()) // There isn't any time ordering to the vertices so check them all
   {
     for (unsigned int iVertex=0; iVertex<track_.get_vertices().size();++iVertex)
@@ -165,7 +240,7 @@ bool TrackDetails::SetFoilmostVertex()
       // Get details for the vertex nearest the source foil, which is at x = 0
       if (TMath::Abs(vertexTranslation.x()) < closestX) // this is nearer the foil
       {
-        closestX=vertexTranslation.x();
+        closestX=TMath::Abs(vertexTranslation.x());
         foilmostVertex_.SetXYZ(vertexTranslation.x(),vertexTranslation.y(),vertexTranslation.z());
       } // end for each vertex
     }
@@ -216,10 +291,11 @@ bool TrackDetails::SetDirection()
 bool TrackDetails::SetProjectedVertex()
 {
   // Check that we have the necessary to do this calculation
-  if (GetFoilmostVertexX()==-9999 || GetDirectionX()==-9999 || !hasTrack_) return false;
+  if (GetFoilmostVertexX()==-9999 || GetDirectionX()==-9999 || GetTrackLength()==0 || !hasTrack_) return false;
   
   double scale=foilmostVertex_.X()/direction_.X();
   projectedVertex_=foilmostVertex_ - scale*direction_; // The second term is the extension to the track to project it back with a straight line
+  projectedLength_=trackLength_+TMath::Abs(scale*(direction_).Mag());
   // The direction has been chosen so it will always point outwards from the foil.
   // The calculation should always give a projected X coordinate of 0
   // But if it projects in such a way that the y or z values are outside the detector, we should return false
@@ -323,6 +399,24 @@ double TrackDetails::GetEnergy()
   return (energy_);
 }
 
+// For anything that hits the calo wall
+double TrackDetails::GetEnergySigma()
+{
+  return (energySigma_);
+}
+
+// For anything that hits the calo wall
+double TrackDetails::GetTime()
+{
+  return (time_);
+}
+
+// For anything that hits the calo wall
+double TrackDetails::GetTimeSigma()
+{
+  return (timeSigma_);
+}
+
 // Fraction of particle's calo energy that is deposited in the main calo wall (France and Italy sides)
 double TrackDetails::GetMainwallFraction()
 {
@@ -362,6 +456,18 @@ bool TrackDetails::HitGammaVeto()
 double TrackDetails::GetTrackLength()
 {
   return (trackLength_);
+}
+
+double TrackDetails::GetTrackLengthSigma()
+{
+  if (this->IsElectron()) return 0;
+  if (this->IsGamma()) return 0.9;// Corresponds to 0.9 ns, justified in docdb 3799 page 10
+  return 0; // What is the track length uncertainty for an alpha? That can go here once we know
+}
+
+double TrackDetails::GetProjectedTrackLength()
+{
+  return (projectedLength_);
 }
 
 double TrackDetails::GetDelayTime()

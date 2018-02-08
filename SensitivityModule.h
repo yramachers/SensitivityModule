@@ -194,6 +194,7 @@ class SensitivityModule : public dpp::base_module {
 
   double ProbabilityFromChiSquared(double chiSquared);
   void CalculateProbabilities(double &internalProbability, double &externalProbability, double *calorimeterEnergies,  double *betas, double *trackLengths, double *calorimeterTimes, double *totalTimeVariances );
+  void CalculateProbabilities(double &internalProbability, double &externalProbability, std::vector<TrackDetails*> twoParticles, bool projected);
   // Functions used to populate the vectors of info about which calorimeter walls were hit
   int InsertAndGetPosition(double toInsert, std::vector<double> &vec, bool highestFirst);
   void PopulateWallVectors(std::vector<int> &calotypes, std::vector<bool> &mainVec, std::vector<bool> &xVec, std::vector<bool> &vetoVec);

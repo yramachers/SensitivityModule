@@ -23,6 +23,8 @@
 #include "falaise/snemo/datamodels/particle_track_data.h"
 
 
+const double ELECTRON_MASS=0.5109989461; // From pdg, in MeV
+const double LIGHT_SPEED=299792458 * 1e-9 * 1000; // Millimeters per nanosecond
 
 class TrackDetails{
   TVector3 foilmostVertex_ ;
@@ -36,18 +38,26 @@ class TrackDetails{
   double vetoFraction_=0;
   int firstHitType_=-1;
   double energy_=0;
+  double energySigma_=0;
+  double time_=0;
+  double timeSigma_=0;
   int charge_=1;
   bool makesTrack_=false;
   snemo::datamodel::particle_track track_;
   double delayTime_=0 ;
   int trackerHitCount_= 0;
   double trackLength_= 0;
+  double trackLengthSigma_=0;
+  double projectedLength_=0;
+  const geomtools::manager* geometry_manager_;
+
   
   bool hasTrack_=false;
   bool SetFoilmostVertex();
   bool SetDirection();
   bool SetProjectedVertex();
   bool PopulateCaloHits();
+  double GetTotalTimeVariance(double thisTrackLength);
   
 public:
 
@@ -56,12 +66,13 @@ public:
   int XWALL=1232;
   int GVETO=1252;
   
+  
   double MAXY=2505.494; // This is the calo position but maybe it should be the end of the actual foils?
   double MAXZ=1400; // This is not exact! Get the real value!
   
   TrackDetails();
-  TrackDetails(snemo::datamodel::particle_track track);
-  void Initialize(snemo::datamodel::particle_track track);
+  TrackDetails(const geomtools::manager* geometry_manager_, snemo::datamodel::particle_track track);
+  void Initialize(const geomtools::manager* geometry_manager_,snemo::datamodel::particle_track track);
   bool Initialize();
 
   bool IsGamma();
@@ -82,10 +93,16 @@ public:
 
   // Energies
   double GetEnergy();
+  double GetEnergySigma();
+  double GetTime();
+  double GetTimeSigma();
   double GetMainwallFraction();
   double GetXwallFraction();
   double GetVetoFraction();
-
+  double GetBeta(); // Fraction of light speed
+  double GetProjectedTimeVariance();
+  double GetTotalTimeVariance();
+  
   // Foilmost vertex
   double GetFoilmostVertexX();
   double GetFoilmostVertexY();
@@ -107,8 +124,12 @@ public:
   
   // For charged particle tracks
   double GetTrackLength();
+  double GetTrackLengthSigma();
+  double GetProjectedTrackLength();
   int GetTrackerHitCount();
   double GetDelayTime();
   
+  // For gammas, we need an electron track to calculate an assumed length
+  double GenerateGammaTrackLengths(TrackDetails *electronTrack);
 };
 
