@@ -116,6 +116,63 @@ double TrackDetails::GenerateGammaTrackLengths(TrackDetails *electronTrack)
   return trackLength_;
 }
 
+bool TrackDetails::GenerateAlphaProjections(TrackDetails *electronTrack)
+{
+  // In a 1e1alpha topology, we can recalculate projected track lengths
+  // for the alpha particle based on the electron projections
+  if (!IsAlpha()) return false;
+  if (!electronTrack->IsElectron()) return false;
+
+  // We need to look at the hits in the alpha track, so get its associated cluster
+  const snemo::datamodel::tracker_trajectory & the_trajectory = track_.get_trajectory();
+  const snemo::datamodel::tracker_cluster & the_cluster = the_trajectory.get_cluster();
+  
+  std::vector<TVector3> vertexPositionDelayedHit;
+  
+  //want to store the vector position of the delayed hit
+
+  int noHits = the_cluster.get_number_of_hits();
+  for (int hitNumber=0; hitNumber < noHits; hitNumber++)
+  {
+      const snemo::datamodel::calibrated_tracker_hit &a_delayed_gg_hit = the_cluster.get_hit(hitNumber);
+      TVector3 delayedHitPos;
+      delayedHitPos.SetXYZ(a_delayed_gg_hit.get_x(), a_delayed_gg_hit.get_y(), a_delayed_gg_hit.get_z());
+      vertexPositionDelayedHit.push_back(delayedHitPos);
+  }
+  
+  // Here we want to examine the number of hits in the alpha, then find different alpha lengths for each category
+  if(trackerHitCount_ == 1){
+    //Alpha length will be the distance to the prompt track
+    //projected length will be distance to foil projected electron from delayed hit vertex
+    projectedLength_ = (electronTrack->GetProjectedVertex() - vertexPositionDelayedHit.at(0)).Mag();
+    projectedVertex_=electronTrack->GetProjectedVertex();
+    return true;
+  }
+  else if(trackerHitCount_ == 2){
+    //track length here is from the middle of the furthest delayed hit back to the prompt track
+    //projected alpha should be to the one with the larger magnitude x coord back to projected electron vertex
+    if(TMath::Abs(vertexPositionDelayedHit.at(0).X()) >= TMath::Abs(vertexPositionDelayedHit.at(1).X())){
+      projectedLength_= (electronTrack->GetProjectedVertex() - vertexPositionDelayedHit.at(0)).Mag();
+    }
+    else{
+      projectedLength_ = (electronTrack->GetProjectedVertex() - vertexPositionDelayedHit.at(1)).Mag();
+    }
+    projectedVertex_=electronTrack->GetProjectedVertex();
+    return true;
+  }
+  else if(trackerHitCount_ > 2){
+    //track length is genuine alpha trackLength - back to foil or wire
+    //want the vertex separation between projected tracks to the foil, use track direction
+    //want the lenth to project back to the foil, if vertex is not on the foil
+    double alphaTrackExtension = (foilmostVertex_ - projectedVertex_).Mag();
+    double totalDistance = alphaTrackExtension + trackLength_;
+    projectedLength_ = (crossesFoil_) ? alphaTrackExtension:totalDistance;
+    return true;
+  }
+  
+  return false; // Zero or negative tracker hit count for the alpha
+}
+
 double TrackDetails::GetProjectedTimeVariance()
 {
   return GetTotalTimeVariance(projectedLength_);
@@ -254,6 +311,8 @@ bool TrackDetails::SetDirection()
   if ( !hasTrack_) return false;
   if (!track_.has_trajectory()) return false; // Can't get the direction without a trajectory!
   const snemo::datamodel::base_trajectory_pattern & the_base_pattern = track_.get_trajectory().get_pattern();
+  geomtools::vector_3d foilmost_end;
+  geomtools::vector_3d outermost_end;
   
   if (the_base_pattern.get_pattern_id()=="line") {
     const geomtools::line_3d & the_shape = (const geomtools::line_3d&)the_base_pattern.get_shape();
@@ -261,12 +320,15 @@ bool TrackDetails::SetDirection()
     geomtools::vector_3d one_end=the_shape.get_first();
     geomtools::vector_3d the_other_end=the_shape.get_last();
     // which is which?
-    geomtools::vector_3d foilmost_end = ((TMath::Abs(one_end.x()) < TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
-    geomtools::vector_3d outermost_end = ((TMath::Abs(one_end.x()) >= TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
+    foilmost_end = ((TMath::Abs(one_end.x()) < TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
+    outermost_end = ((TMath::Abs(one_end.x()) >= TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
     geomtools::vector_3d direction = the_shape.get_direction_on_curve(the_shape.get_first()); // Only the first stores the direction for a line track
     int multiplier = (direction.x() * outermost_end.x() > 0)? 1: -1; // If the direction points the wrong way, reverse it
     // This will always point inwards towards the foil
     direction_.SetXYZ(direction.x() * multiplier, direction.y() * multiplier, direction.z() * multiplier);
+    if(foilmost_end.x() * outermost_end.x() < 0 && TMath::Abs(foilmost_end.x()) > FOIL_CELL_GAP){
+      crossesFoil_=true;
+    }
   } //end line track
   else {
     const geomtools::helix_3d & the_shape = (const geomtools::helix_3d&)the_base_pattern.get_shape();
@@ -274,14 +336,17 @@ bool TrackDetails::SetDirection()
     geomtools::vector_3d one_end=the_shape.get_first();
     geomtools::vector_3d the_other_end=the_shape.get_last();
     // which is which?
-    geomtools::vector_3d foilmost_end = ((TMath::Abs(one_end.x()) < TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
-    geomtools::vector_3d outermost_end = ((TMath::Abs(one_end.x()) >= TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
+    foilmost_end = ((TMath::Abs(one_end.x()) < TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
+    outermost_end = ((TMath::Abs(one_end.x()) >= TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
     
     geomtools::vector_3d direction = the_shape.get_direction_on_curve(foilmost_end); // Not the same on a curve
     int multiplier = (direction.x() * outermost_end.x() > 0)? 1: -1; // If the direction points the wrong way, reverse it
     // This will also point in towards the foil. Is that misleading in the case of a track that curves towards the foil and then out again? Not a problem when looking for bb events, but would it be misleading in cases of tracks from the wires?
     direction_.SetXYZ(direction.x() * multiplier, direction.y() * multiplier, direction.z() * multiplier);
   }// end helix track
+  if(foilmost_end.x() * outermost_end.x() < 0 && TMath::Abs(foilmost_end.x()) > FOIL_CELL_GAP){
+    crossesFoil_=true;
+  }
   return true;
 }
 
@@ -305,6 +370,8 @@ bool TrackDetails::SetProjectedVertex()
   }
   return true;
 }
+
+
   
 // Getters for the vertex information
 
@@ -364,7 +431,11 @@ TVector3 TrackDetails::GetDirection()
   return direction_;
 }
 
-
+// Does the track cross the foil (really it shouldn't)
+bool TrackDetails::TrackCrossesFoil()
+{
+  return crossesFoil_;
+}
 
 // What particle is it?
 bool TrackDetails::IsGamma()

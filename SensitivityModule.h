@@ -151,6 +151,7 @@ typedef struct SensitivityEventStorage{
   double edgemost_vertex_; // Y position of the foil vertex nearest the side of the detector
   double alpha_track_length_; // Length of the alpha track in mm, different metrics for different numbers of delayed hits
   double proj_track_length_alpha_; // Length of the alpha track when projected back to the foil in mm
+  bool alpha_crosses_foil_; // True if the alpha track crosses the foil (bug in alpha finder)
   
   // Truth info - particle energies in MeV and primary vertex position
   double true_highest_primary_energy_;
