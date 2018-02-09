@@ -178,7 +178,7 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
 dpp::base_module::process_status
 SensitivityModule::process(datatools::things& workItem) {
   
-
+  
   // internal variables to mimic the ntuple variables, names are same but in camel case
   bool passesTwoCalorimeters=false;
   bool passesTwoPlusCalos=false;
@@ -463,7 +463,7 @@ SensitivityModule::process(datatools::things& workItem) {
       is1electron = true;
     }
     
-    if (electronCandidates.size() ==1 && alphaCandidates.size() ==1)
+    if (electronCandidates.size() ==1 && alphaCandidates.size() ==1 && trackCount==2)
     { // gammas allowed
       is1e1alpha = true;
     }
@@ -565,6 +565,11 @@ SensitivityModule::process(datatools::things& workItem) {
   highestGammaEnergy=0;
   if (gammaCandidates.size()>0) highestGammaEnergy=gammaEnergies.at(0);
 
+  
+  // Initialise variables that might not otherwise get set
+  // It does not restart the vector for each entry so we have to do that manually
+  ResetVars();
+  
   // Cuts pass/fail
   sensitivity_.passes_two_calorimeters_ = passesTwoCalorimeters;
   sensitivity_.passes_two_plus_calos_ = passesTwoPlusCalos;
@@ -586,36 +591,10 @@ SensitivityModule::process(datatools::things& workItem) {
   //uint highEnergyIndex =(calorimeterEnergy[0]>calorimeterEnergy[1] ? 0:1);
   uint lowEnergyIndex = 1-highEnergyIndex;
 
-  // Vertices
-  sensitivity_.vertices_on_foil_=verticesOnFoil;
-  
 
-  sensitivity_.projection_distance_xy_=projectionDistanceXY;
-  sensitivity_.foil_alpha_count_=foilAlphaCount;
-  sensitivity_.electrons_from_foil_=electronsFromFoil;
-  sensitivity_.electron_track_lengths_=electronTrackLengths;
-  sensitivity_.electron_hit_counts_=electronHitCounts;
-  
   // And the new vertex vectors - we can rely on these all being the same size of vectors as we populate them all together
-  // It does not restart the vector for each entry so we have to do that manually
-  sensitivity_.electron_vertex_x_.clear();
-  sensitivity_.electron_vertex_y_.clear();
-  sensitivity_.electron_vertex_z_.clear();
-  sensitivity_.electron_proj_vertex_x_.clear();
-  sensitivity_.electron_proj_vertex_y_.clear();
-  sensitivity_.electron_proj_vertex_z_.clear();
-  sensitivity_.electron_dir_x_.clear();
-  sensitivity_.electron_dir_y_.clear();
-  sensitivity_.electron_dir_z_.clear();
-  sensitivity_.alpha_vertex_x_.clear();
-  sensitivity_.alpha_vertex_y_.clear();
-  sensitivity_.alpha_vertex_z_.clear();
-  sensitivity_.alpha_proj_vertex_x_.clear();
-  sensitivity_.alpha_proj_vertex_y_.clear();
-  sensitivity_.alpha_proj_vertex_z_.clear();
-  sensitivity_.alpha_dir_x_.clear();
-  sensitivity_.alpha_dir_y_.clear();
-  sensitivity_.alpha_dir_z_.clear();
+
+  
   
   for (int i=0;i<electronVertices.size();i++)
   {
@@ -656,6 +635,7 @@ SensitivityModule::process(datatools::things& workItem) {
     sensitivity_.first_track_direction_x_= electronDirections.at(0).X();
     sensitivity_.first_track_direction_y_= electronDirections.at(0).Y();
     sensitivity_.first_track_direction_z_= electronDirections.at(0).Z();
+    projectionDistanceXY=(electronVertices.at(0)-electronProjVertices.at(0)).Perp();
   }
   if (is2electron ) // The second one is the lower-energy electron
   {
@@ -671,6 +651,9 @@ SensitivityModule::process(datatools::things& workItem) {
     sensitivity_.vertex_separation_= (electronVertices.at(0) - electronVertices.at(1)).Mag();
     sensitivity_.foil_projection_separation_= (electronProjVertices.at(0) - electronProjVertices.at(1)).Mag();
     sensitivity_.angle_between_tracks_= electronDirections.at(0).Angle(electronDirections.at(1));
+    
+    double thisProjectionDistance=(electronVertices.at(1)-electronProjVertices.at(1)).Perp();
+    if (thisProjectionDistance > projectionDistanceXY)projectionDistanceXY=thisProjectionDistance;
   }
 
   if(is1e1alpha)
@@ -693,6 +676,9 @@ SensitivityModule::process(datatools::things& workItem) {
     sensitivity_.vertex_separation_=(electronVertices.at(0) - alphaVertices.at(0)).Mag();
     sensitivity_.foil_projection_separation_= (electronProjVertices.at(0) - alphaCandidateDetails.at(0).GetProjectedVertex()).Mag();
     sensitivity_.angle_between_tracks_= electronDirections.at(0).Angle(alphaDirections.at(0));
+    
+    double thisProjectionDistance=(alphaVertices.at(0)-alphaProjVertices.at(0)).Perp();
+    if (thisProjectionDistance > projectionDistanceXY)projectionDistanceXY=thisProjectionDistance;
 
   }
   
@@ -701,6 +687,16 @@ SensitivityModule::process(datatools::things& workItem) {
     {
       sensitivity_.same_side_of_foil_= ((sensitivity_.first_track_direction_x_ * sensitivity_.second_track_direction_x_) > 0); // X components both positive or both negative
     }
+  // Vertices
+  sensitivity_.vertices_on_foil_=verticesOnFoil;
+  
+  
+  sensitivity_.projection_distance_xy_=projectionDistanceXY;
+  sensitivity_.foil_alpha_count_=foilAlphaCount;
+  sensitivity_.electrons_from_foil_=electronsFromFoil;
+  sensitivity_.electron_track_lengths_=electronTrackLengths;
+  sensitivity_.electron_hit_counts_=electronHitCounts;
+  
  
   // Timing
   sensitivity_.calo_hit_time_separation_=TMath::Abs(timeDelay);
@@ -898,6 +894,55 @@ double SensitivityModule::ProbabilityFromChiSquared(double chiSquared)
   return result;
 }
 
+
+void SensitivityModule::ResetVars()
+{
+  sensitivity_.electron_track_lengths_.clear();
+  sensitivity_.electron_vertex_x_.clear();
+  sensitivity_.electron_vertex_y_.clear();
+  sensitivity_.electron_vertex_z_.clear();
+  sensitivity_.electron_proj_vertex_x_.clear();
+  sensitivity_.electron_proj_vertex_y_.clear();
+  sensitivity_.electron_proj_vertex_z_.clear();
+  sensitivity_.electron_dir_x_.clear();
+  sensitivity_.electron_dir_y_.clear();
+  sensitivity_.electron_dir_z_.clear();
+  sensitivity_.alpha_vertex_x_.clear();
+  sensitivity_.alpha_vertex_y_.clear();
+  sensitivity_.alpha_vertex_z_.clear();
+  sensitivity_.alpha_proj_vertex_x_.clear();
+  sensitivity_.alpha_proj_vertex_y_.clear();
+  sensitivity_.alpha_proj_vertex_z_.clear();
+  sensitivity_.alpha_dir_x_.clear();
+  sensitivity_.alpha_dir_y_.clear();
+  sensitivity_.alpha_dir_z_.clear();
+  
+  // And initialize the rest, what a drag
+  sensitivity_.first_proj_vertex_y_ = -9999;
+  sensitivity_.first_proj_vertex_z_ = -9999;
+  sensitivity_.first_vertex_x_ = -9999;
+  sensitivity_.first_vertex_y_ = -9999;
+  sensitivity_.first_vertex_z_ = -9999;
+  sensitivity_.first_track_direction_x_= -9999;
+  sensitivity_.first_track_direction_y_= -9999;
+  sensitivity_.first_track_direction_z_= -9999;
+  sensitivity_.second_proj_vertex_y_ = -9999;
+  sensitivity_.second_proj_vertex_z_ = -9999;
+  sensitivity_.second_vertex_x_ = -9999;
+  sensitivity_.second_vertex_y_ = -9999;
+  sensitivity_.second_vertex_z_ = -9999;
+  sensitivity_.second_track_direction_x_= -9999;
+  sensitivity_.second_track_direction_y_= -9999;
+  sensitivity_.second_track_direction_z_= -9999;
+  sensitivity_.vertex_separation_= -9999;
+  sensitivity_.foil_projection_separation_= -9999;
+  sensitivity_.angle_between_tracks_= -9999;
+  sensitivity_.alpha_track_length_=-9999;
+  sensitivity_.proj_track_length_alpha_=-9999;
+  sensitivity_.alpha_crosses_foil_=false;
+
+}
+
 //! [SensitivityModule::reset]
 void SensitivityModule::reset() {
   hfile_->cd();
@@ -909,5 +954,6 @@ void SensitivityModule::reset() {
   delete hfile_;
   filename_output_ = "sensitivity.root";
   this->_set_initialized(false);
+
 }
 

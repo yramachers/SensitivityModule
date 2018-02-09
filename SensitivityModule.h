@@ -145,7 +145,7 @@ typedef struct SensitivityEventStorage{
   int associated_track_count_; // How many reconstructed tracks with an associated calorimeter?
   int alpha_count_; // How many reconstructed alphas (ie delayed hits)?
   int foil_alpha_count_; //How many reconstructed alphas (ie delayed hits) that we think have a vertex on the foil?
-  int delayed_cluster_hit_count_; //How many gieger hits in the alpha track
+  int delayed_cluster_hit_count_; //How many geiger hits in the alpha track
   int small_cluster_count_; // How many clusters with 2 hits?
   double highest_gamma_energy_; // Highest energy gamma
   double edgemost_vertex_; // Y position of the foil vertex nearest the side of the detector
@@ -200,6 +200,7 @@ class SensitivityModule : public dpp::base_module {
   int InsertAndGetPosition(double toInsert, std::vector<double> &vec, bool highestFirst);
   void PopulateWallVectors(std::vector<int> &calotypes, std::vector<bool> &mainVec, std::vector<bool> &xVec, std::vector<bool> &vetoVec);
   template <typename T>  void InsertAt(T toInsert, std::vector<T> &vec, int position);
+  void ResetVars();
 
 
   // Macro which automatically creates the interface needed
