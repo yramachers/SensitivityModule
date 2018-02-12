@@ -143,7 +143,8 @@ typedef struct SensitivityEventStorage{
   int cluster_count_; // How many clusters with 3 or more hits?
   int track_count_; // How many reconstructed tracks?
   int associated_track_count_; // How many reconstructed tracks with an associated calorimeter?
-  int alpha_count_; // How many reconstructed alphas (ie delayed hits)?
+  int delayed_hit_count_; // Number of delated tracker hits, regardless of whether they are tracked as alphas
+  int alpha_count_; // How many reconstructed alphas (formed from one or more delayed hits)?
   int foil_alpha_count_; //How many reconstructed alphas (ie delayed hits) that we think have a vertex on the foil?
   int delayed_cluster_hit_count_; //How many geiger hits in the alpha track
   int small_cluster_count_; // How many clusters with 2 hits?

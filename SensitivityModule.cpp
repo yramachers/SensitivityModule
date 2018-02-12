@@ -63,6 +63,7 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("reco.track_count",&sensitivity_.track_count_);
   tree_->Branch("reco.associated_track_count",&sensitivity_.associated_track_count_);
   tree_->Branch("reco.small_cluster_count",&sensitivity_.small_cluster_count_);
+  tree_->Branch("reco.delayed_hit_count",&sensitivity_.delayed_hit_count_);
   
   // Numbers of reconstructed particles
   tree_->Branch("reco.number_of_electrons",&sensitivity_.number_of_electrons_);
