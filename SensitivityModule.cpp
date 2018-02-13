@@ -26,9 +26,6 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   // Look for services
   if (flServices.has("geometry")) {
     const geomtools::geometry_service& GS = flServices.get<geomtools::geometry_service> ("geometry");
-
-    // initialize geometry manager
-    //    std::cout << "Initialize geo manager " << std::endl;
     geometry_manager_ = &GS.get_geom_manager();
     DT_THROW_IF(!geometry_manager_,
                 std::runtime_error,
@@ -66,6 +63,7 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("reco.track_count",&sensitivity_.track_count_);
   tree_->Branch("reco.associated_track_count",&sensitivity_.associated_track_count_);
   tree_->Branch("reco.small_cluster_count",&sensitivity_.small_cluster_count_);
+  tree_->Branch("reco.delayed_hit_count",&sensitivity_.delayed_hit_count_);
   
   // Numbers of reconstructed particles
   tree_->Branch("reco.number_of_electrons",&sensitivity_.number_of_electrons_);
@@ -150,6 +148,8 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
   tree_->Branch("reco.foil_alpha_count",&sensitivity_.foil_alpha_count_);
   tree_->Branch("reco.alpha_track_length",&sensitivity_.alpha_track_length_);
   tree_->Branch("reco.proj_track_length_alpha",&sensitivity_.proj_track_length_alpha_);
+  tree_->Branch("reco.alpha_crosses_foil",&sensitivity_.alpha_crosses_foil_);
+  
   
   // Calorimeter positions
   tree_->Branch("reco.electron_hits_mainwall",&sensitivity_.electron_hits_mainwall_);
@@ -178,7 +178,8 @@ void SensitivityModule::initialize(const datatools::properties& myConfig,
 //! [SensitivityModule::Process]
 dpp::base_module::process_status
 SensitivityModule::process(datatools::things& workItem) {
-
+  
+  
   // internal variables to mimic the ntuple variables, names are same but in camel case
   bool passesTwoCalorimeters=false;
   bool passesTwoPlusCalos=false;
@@ -219,6 +220,7 @@ SensitivityModule::process(datatools::things& workItem) {
   int clusterCount=0;
   int trackCount=0;
   int alphaCount=0;
+  int delayedHitCount=0;
   int foilAlphaCount=0;
   int associatedTrackCount=0;
   int smallClusterCount=0;
@@ -259,32 +261,6 @@ SensitivityModule::process(datatools::things& workItem) {
   std::vector<double>gammaVetoFraction;
 
   std::vector<double> trajClDelayedTime;
-
-  // Set to a value outside the detector
-  TVector3 vertexPosition[2];
-  for (int i=0;i<2;i++)
-    vertexPosition[i].SetXYZ(-9999,-9999,-9999);
-
-  // Define another vertex position for alphas etc
-  TVector3 vertexPositionAlpha[1];
-  for (int i=0;i<1;i++)
-    vertexPositionAlpha[i].SetXYZ(-9999,-9999,-9999);
-  TVector3 vertexPositionElectron[1];
-  for (int i=0;i<1;i++)
-    vertexPositionElectron[i].SetXYZ(-9999,-9999,-9999);
-  TVector3 projectedVertexPosition[2];
-  for (int i=0;i<2;i++)
-    projectedVertexPosition[i].SetXYZ(0,-9999,-9999);
-  TVector3 projectedVertexPositionAlpha[1];
-  for (int i=0;i<1;i++)
-    projectedVertexPositionAlpha[i].SetXYZ(0,-9999,-9999);
-  TVector3 projectedVertexPositionElectron[1];
-  for (int i=0;i<1;i++)
-    projectedVertexPositionElectron[i].SetXYZ(0,-9999,-9999);
-  TVector3 vertexPositionDelayedHit[2];
-  for (int i=0;i<1;i++)
-    vertexPositionDelayedHit[i].SetXYZ(-9999,-9999,-9999);
-  TVector3 trackDirection[2];
   
   std::vector<TVector3> electronVertices;
   std::vector<TVector3> electronDirections;
@@ -296,7 +272,6 @@ SensitivityModule::process(datatools::things& workItem) {
   
   double angleBetweenTracks;
   bool sameSideOfFoil=false;
-  bool alphaCrossesFoil=false;
   bool edgemostJoinedElectron=false;
   double projectionDistanceXY=0;
 
@@ -304,6 +279,8 @@ SensitivityModule::process(datatools::things& workItem) {
   // Grab calibrated data bank
   // Calibrated data will only be present in reconstructed files,
   // so wrap in a try block
+  
+  
   try {
     const snemo::datamodel::calibrated_data& calData = workItem.get<snemo::datamodel::calibrated_data>("CD");
 
@@ -333,6 +310,7 @@ SensitivityModule::process(datatools::things& workItem) {
 
         }
       }
+    
       caloHitCount=nCalHitsOverLowLimit;
       if (nCalorimeterHits==2 && nCalHitsOverHighLimit>=1 && nCalHitsOverLowLimit==2)
         {
@@ -341,6 +319,16 @@ SensitivityModule::process(datatools::things& workItem) {
       if (nCalHitsOverHighLimit>=1 && nCalHitsOverLowLimit>=2)
       {
         passesTwoPlusCalos=true;
+      }
+      if (calData.has_calibrated_tracker_hits())
+      {
+        // Count the delayed tracker hits by looping all the tracker hits and checking if they are delayed
+        const snemo::datamodel::calibrated_data::tracker_hit_collection_type& trackerHits = calData.calibrated_tracker_hits();
+        for (snemo::datamodel::calibrated_data::tracker_hit_collection_type::const_iterator   iHit = trackerHits.begin(); iHit != trackerHits.end(); ++iHit) {
+          const snemo::datamodel::calibrated_tracker_hit& hit = iHit->get();
+          if (hit.is_delayed()) delayedHitCount++;
+        }
+
       }
     }
   catch (std::logic_error& e) {
@@ -382,6 +370,7 @@ SensitivityModule::process(datatools::things& workItem) {
   try
   {
     const snemo::datamodel::particle_track_data& trackData = workItem.get<snemo::datamodel::particle_track_data>("PTD");
+    
     if (trackData.has_particles ())
     {
 
@@ -474,7 +463,7 @@ SensitivityModule::process(datatools::things& workItem) {
     // Now identify topologies
     //---------------------------------------
     if (electronCandidates.size()==2 && trackCount==2)
-    {
+    { // at the moment - gammas allowed
       is2electron = true;
     }
     if (electronCandidates.size()==1 && numberOfGammas>=1 && trackCount==1)
@@ -487,10 +476,11 @@ SensitivityModule::process(datatools::things& workItem) {
       is1electron = true;
     }
     
-    if (electronCandidates.size() ==1 && alphaCandidates.size() ==1)
-    {
+    if (electronCandidates.size() ==1 && alphaCandidates.size() ==1 && trackCount==2)
+    { // gammas allowed
       is1e1alpha = true;
     }
+    
 
     //---------------------------------------
     // Combined info for the topologies
@@ -500,167 +490,13 @@ SensitivityModule::process(datatools::things& workItem) {
     // Want to iterate over the tracks in the electronCandidate and alphaCandidate vectors
     if (is1e1alpha)
     {
-      for (uint iParticle=0;iParticle<(electronCandidates.size());++iParticle)
-      {
-        
-        snemo::datamodel::particle_track track=electronCandidates.at(iParticle);
-        if (track.has_trajectory())
-        {
-          const snemo::datamodel::base_trajectory_pattern & the_base_pattern = track.get_trajectory().get_pattern();
-          if (the_base_pattern.get_pattern_id()=="line") {
-            const geomtools::line_3d & the_shape = (const geomtools::line_3d&)the_base_pattern.get_shape();
-            // Find the two ends of the track
-            geomtools::vector_3d one_end=the_shape.get_first();
-            geomtools::vector_3d the_other_end=the_shape.get_last();
-            // which is which?
-            geomtools::vector_3d foilmost_end = ((TMath::Abs(one_end.x()) < TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
-            geomtools::vector_3d outermost_end = ((TMath::Abs(one_end.x()) >= TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
-            geomtools::vector_3d direction = the_shape.get_direction_on_curve(the_shape.get_first()); // Only the first stores the direction for a line track
-            int multiplier = (direction.x() * outermost_end.x() > 0)? 1: -1; // If the direction points the wrong way, reverse it
-            trackDirection[iParticle].SetXYZ(direction.x() * multiplier, direction.y() * multiplier, direction.z() * multiplier);
-            } //end line track
-            else {
-              const geomtools::helix_3d & the_shape = (const geomtools::helix_3d&)the_base_pattern.get_shape();
-              // Find the two ends of the track
-              geomtools::vector_3d one_end=the_shape.get_first();
-              geomtools::vector_3d the_other_end=the_shape.get_last();
-              // which is which?
-              geomtools::vector_3d foilmost_end = ((TMath::Abs(one_end.x()) < TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
-              geomtools::vector_3d outermost_end = ((TMath::Abs(one_end.x()) >= TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
-
-              geomtools::vector_3d direction = the_shape.get_direction_on_curve(foilmost_end); // Not the same on a curve
-              int multiplier = (direction.x() * outermost_end.x() > 0)? 1: -1; // If the direction points the wrong way, reverse it
-
-              trackDirection[iParticle].SetXYZ(direction.x() * multiplier, direction.y() * multiplier, direction.z() * multiplier);
-            }// end helix track
-          }//end if has trajectory
-        if (track.has_vertices()) // There doesn't seem to be any time ordering to the vertices
-        {
-          for (unsigned int iVertex=0; iVertex<track.get_vertices().size();++iVertex)
-          {
-            const geomtools::blur_spot & vertex = track.get_vertices().at(iVertex).get();
-            const geomtools::vector_3d & vertexTranslation = vertex.get_placement().get_translation();
-            // Get details for the vertex nearest the source foil, which is at x = 0
-            if (TMath::Abs(vertexTranslation.x()) < TMath::Abs(vertexPositionElectron[iParticle].X())) // this is nearer the foil
-            {
-              vertexPositionElectron[iParticle].SetXYZ(vertexTranslation.x(),vertexTranslation.y(),vertexTranslation.z());
-            }
-          }
-        }
-        // Calculate the projected vertex separation
-        double scale=vertexPositionElectron[iParticle].X()/trackDirection[iParticle].X();
-        projectedVertexPositionElectron[iParticle]=vertexPositionElectron[iParticle] - scale*trackDirection[iParticle]; // The second term is the extension to the track to project it back with a straight line
-      }
-
-      for (uint iParticle=0;iParticle<(alphaCandidates.size());++iParticle)
-      {
-        snemo::datamodel::particle_track track=alphaCandidates.at(iParticle);
-        if (track.has_trajectory())
-        {
-          trackLengthAlpha=track.get_trajectory().get_pattern().get_shape().get_length();
-          const snemo::datamodel::tracker_trajectory & the_trajectory = track.get_trajectory();
-          const snemo::datamodel::tracker_cluster & the_cluster = the_trajectory.get_cluster();
-          //want to store the vector position of the delayed hit
-          if(the_cluster.is_delayed()>0)
-          {
-            int noHits = the_cluster.get_number_of_hits();
-            for (int hitNumber=0; hitNumber < noHits; hitNumber++)
-            {
-              const snemo::datamodel::calibrated_tracker_hit &a_delayed_gg_hit = the_cluster.get_hit(hitNumber);
-              geomtools::vector_3d delayedHitPosition(a_delayed_gg_hit.get_x(), a_delayed_gg_hit.get_y(), a_delayed_gg_hit.get_z());
-              vertexPositionDelayedHit[hitNumber].SetXYZ(delayedHitPosition.x(), delayedHitPosition.y(), delayedHitPosition.z());
-            }
-          }
-          const snemo::datamodel::base_trajectory_pattern & the_base_pattern = track.get_trajectory().get_pattern();
-          if (the_base_pattern.get_pattern_id()=="line") {
-            const geomtools::line_3d & the_shape = (const geomtools::line_3d&)the_base_pattern.get_shape();
-            // Find the two ends of the track
-            geomtools::vector_3d one_end=the_shape.get_first();
-            geomtools::vector_3d the_other_end=the_shape.get_last();
-            // which is which?
-            geomtools::vector_3d foilmost_end = ((TMath::Abs(one_end.x()) < TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
-            geomtools::vector_3d outermost_end = ((TMath::Abs(one_end.x()) >= TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
-            geomtools::vector_3d direction = the_shape.get_direction_on_curve(the_shape.get_first()); // Only the first stores the direction for a line track
-            int multiplier = (direction.x() * outermost_end.x() > 0)? 1: -1; // If the direction points the wrong way, reverse it
-            trackDirection[iParticle].SetXYZ(direction.x() * multiplier, direction.y() * multiplier, direction.z() * multiplier);
-            // Check to see if the alpha crosses the foil
-            if(foilmost_end.x() * outermost_end.x() < 0 && TMath::Abs(foilmost_end.x()) > distanceBetweenFoilGeigerCell){
-                alphaCrossesFoil=true;
-              }
-            else{
-              alphaCrossesFoil=false;
-              }
-            } //end line track
-            else {
-              const geomtools::helix_3d & the_shape = (const geomtools::helix_3d&)the_base_pattern.get_shape();
-              // Find the two ends of the track
-              geomtools::vector_3d one_end=the_shape.get_first();
-              geomtools::vector_3d the_other_end=the_shape.get_last();
-              // which is which?
-              geomtools::vector_3d foilmost_end = ((TMath::Abs(one_end.x()) < TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
-              geomtools::vector_3d outermost_end = ((TMath::Abs(one_end.x()) >= TMath::Abs(the_other_end.x())) ? one_end: the_other_end);
-
-              geomtools::vector_3d direction = the_shape.get_direction_on_curve(foilmost_end); // Not the same on a curve
-              int multiplier = (direction.x() * outermost_end.x() > 0)? 1: -1; // If the direction points the wrong way, reverse it
-
-              trackDirection[iParticle].SetXYZ(direction.x() * multiplier, direction.y() * multiplier, direction.z() * multiplier);
-              if(foilmost_end.x() * outermost_end.x() < 0 && TMath::Abs(foilmost_end.x()) > distanceBetweenFoilGeigerCell){
-                alphaCrossesFoil=true;
-                }
-              else{
-                alphaCrossesFoil=false;
-                }
-            }// end helix track
-          }//end if has trajectory
-        if (track.has_vertices()) // There doesn't seem to be any time ordering to the vertices
-        {
-          for (unsigned int iVertex=0; iVertex<track.get_vertices().size();++iVertex)
-          {
-            const geomtools::blur_spot & vertex = track.get_vertices().at(iVertex).get();
-            const geomtools::vector_3d & vertexTranslation = vertex.get_placement().get_translation();
-            // Get details for the vertex nearest the source foil, which is at x = 0
-            if (TMath::Abs(vertexTranslation.x()) < TMath::Abs(vertexPositionAlpha[iParticle].X())) // this is nearer the foil
-            {
-              vertexPositionAlpha[iParticle].SetXYZ(vertexTranslation.x(),vertexTranslation.y(),vertexTranslation.z());
-            }
-          }
-        }
-        //find the track length when projecting back to the foil at x=0
-        double scale=vertexPositionAlpha[iParticle].X()/trackDirection[iParticle].X();
-        // The second term is the extension to the track to project it back with a straight line
-        projectedVertexPositionAlpha[iParticle]=vertexPositionAlpha[iParticle] - scale*trackDirection[iParticle];
-
-        //find the track length when projecting back to foil most electron vertex
-        double vertexSeparation=(vertexPositionElectron[0] - vertexPositionAlpha[0]).Mag();
-
-        // Here we want to examine the number of hits in the alpha, then find different alpha lengths for each category
-        if(delayedClusterHitCount == 1){
-          //Alpha length will be the distance to the prompt track
-          //projected length will be distance to foil projected electron from delayed hit vertex
-          projectedTrackLengthAlpha = (projectedVertexPositionElectron[0] - vertexPositionDelayedHit[0]).Mag();
-        }
-        else if(delayedClusterHitCount == 2){
-          //track length here is from the middle of the furthest delayed hit back to the prompt track
-          //projected alpha should be to the one with the larger magnitude x coord back to projected electron vertex
-          if(TMath::Abs(vertexPositionDelayedHit[0].X()) >= TMath::Abs(vertexPositionDelayedHit[1].X())){
-            projectedTrackLengthAlpha = (projectedVertexPositionElectron[0] - vertexPositionDelayedHit[0]).Mag();
-          }
-          else{
-            projectedTrackLengthAlpha = (projectedVertexPositionElectron[0] - vertexPositionDelayedHit[1]).Mag();
-          }
-        }
-        else if(delayedClusterHitCount > 2){
-          //track length is geniune alpha trackLength - back to foil or wire
-          //want the vertex separation between projected tracks to the foil, use track direction
-          //want the lenth to project back to the foil, if vertex is not on the foil
-          double alphaTrackExtension = (vertexPositionAlpha[0] - projectedVertexPositionAlpha[0]).Mag();
-          double totalDistance = alphaTrackExtension + trackLengthAlpha;
-          projectedTrackLengthAlpha = (alphaCrossesFoil) ? alphaTrackExtension:totalDistance;
-        }
-      }
+      // Recalculate the projected track length based on the electron track
+      alphaCandidateDetails.at(0).GenerateAlphaProjections(&electronCandidateDetails.at(0));
     }
 
-    // For 2-electron and 1-e-n-gamma events, calculate some internal and external probablilities
+    // For 2-electron and 1-e-n-gamma events, calculate some internal and external probablilities:
+    // that the two particles originated at the same time from the foil (internal) or that
+    // one went to the foil and ejected the other from it (external)
     if (is2electron || is1engamma)
     {
       std::vector<TrackDetails*> twoParticles;
@@ -742,6 +578,11 @@ SensitivityModule::process(datatools::things& workItem) {
   highestGammaEnergy=0;
   if (gammaCandidates.size()>0) highestGammaEnergy=gammaEnergies.at(0);
 
+  
+  // Initialise variables that might not otherwise get set
+  // It does not restart the vector for each entry so we have to do that manually
+  ResetVars();
+  
   // Cuts pass/fail
   sensitivity_.passes_two_calorimeters_ = passesTwoCalorimeters;
   sensitivity_.passes_two_plus_calos_ = passesTwoPlusCalos;
@@ -763,37 +604,10 @@ SensitivityModule::process(datatools::things& workItem) {
   //uint highEnergyIndex =(calorimeterEnergy[0]>calorimeterEnergy[1] ? 0:1);
   uint lowEnergyIndex = 1-highEnergyIndex;
 
-  // Vertices
-  sensitivity_.vertices_on_foil_=verticesOnFoil;
-  
 
-  sensitivity_.foil_projection_separation_= (projectedVertexPosition[0] - projectedVertexPosition[1]).Mag();
-  sensitivity_.projection_distance_xy_=projectionDistanceXY;
-  sensitivity_.foil_alpha_count_=foilAlphaCount;
-  sensitivity_.electrons_from_foil_=electronsFromFoil;
-  sensitivity_.electron_track_lengths_=electronTrackLengths;
-  sensitivity_.electron_hit_counts_=electronHitCounts;
-  
   // And the new vertex vectors - we can rely on these all being the same size of vectors as we populate them all together
-  // It does not restart the vector for each entry so we have to do that manually
-  sensitivity_.electron_vertex_x_.clear();
-  sensitivity_.electron_vertex_y_.clear();
-  sensitivity_.electron_vertex_z_.clear();
-  sensitivity_.electron_proj_vertex_x_.clear();
-  sensitivity_.electron_proj_vertex_y_.clear();
-  sensitivity_.electron_proj_vertex_z_.clear();
-  sensitivity_.electron_dir_x_.clear();
-  sensitivity_.electron_dir_y_.clear();
-  sensitivity_.electron_dir_z_.clear();
-  sensitivity_.alpha_vertex_x_.clear();
-  sensitivity_.alpha_vertex_y_.clear();
-  sensitivity_.alpha_vertex_z_.clear();
-  sensitivity_.alpha_proj_vertex_x_.clear();
-  sensitivity_.alpha_proj_vertex_y_.clear();
-  sensitivity_.alpha_proj_vertex_z_.clear();
-  sensitivity_.alpha_dir_x_.clear();
-  sensitivity_.alpha_dir_y_.clear();
-  sensitivity_.alpha_dir_z_.clear();
+
+  
   
   for (int i=0;i<electronVertices.size();i++)
   {
@@ -834,6 +648,7 @@ SensitivityModule::process(datatools::things& workItem) {
     sensitivity_.first_track_direction_x_= electronDirections.at(0).X();
     sensitivity_.first_track_direction_y_= electronDirections.at(0).Y();
     sensitivity_.first_track_direction_z_= electronDirections.at(0).Z();
+    projectionDistanceXY=(electronVertices.at(0)-electronProjVertices.at(0)).Perp();
   }
   if (is2electron ) // The second one is the lower-energy electron
   {
@@ -849,15 +664,20 @@ SensitivityModule::process(datatools::things& workItem) {
     sensitivity_.vertex_separation_= (electronVertices.at(0) - electronVertices.at(1)).Mag();
     sensitivity_.foil_projection_separation_= (electronProjVertices.at(0) - electronProjVertices.at(1)).Mag();
     sensitivity_.angle_between_tracks_= electronDirections.at(0).Angle(electronDirections.at(1));
+    
+    double thisProjectionDistance=(electronVertices.at(1)-electronProjVertices.at(1)).Perp();
+    if (thisProjectionDistance > projectionDistanceXY)projectionDistanceXY=thisProjectionDistance;
   }
+
   if(is1e1alpha)
   {
-    sensitivity_.alpha_track_length_=trackLengthAlpha; // ### do we have alpha track length?
-    sensitivity_.proj_track_length_alpha_=projectedTrackLengthAlpha;
+    sensitivity_.alpha_track_length_=alphaCandidateDetails.at(0).GetTrackLength();
+    sensitivity_.proj_track_length_alpha_=alphaCandidateDetails.at(0).GetProjectedTrackLength();
+    sensitivity_.alpha_crosses_foil_=alphaCandidateDetails.at(0).TrackCrossesFoil();
 
     // Second vertex is the alpha
-    sensitivity_.second_proj_vertex_y_=alphaProjVertices.at(0).Y();
-    sensitivity_.second_proj_vertex_z_=alphaProjVertices.at(0).Z();
+    sensitivity_.second_proj_vertex_y_=alphaCandidateDetails.at(0).GetProjectedVertex().Y();
+    sensitivity_.second_proj_vertex_z_=alphaCandidateDetails.at(0).GetProjectedVertex().Z();
     sensitivity_.second_vertex_x_= alphaVertices.at(0).X();
     sensitivity_.second_vertex_y_= alphaVertices.at(0).Y();
     sensitivity_.second_vertex_z_= alphaVertices.at(0).Z();
@@ -867,8 +687,11 @@ SensitivityModule::process(datatools::things& workItem) {
     
       // Some two-particle topology calculations
     sensitivity_.vertex_separation_=(electronVertices.at(0) - alphaVertices.at(0)).Mag();
-    sensitivity_.foil_projection_separation_= (electronProjVertices.at(0) - alphaProjVertices.at(0)).Mag();
+    sensitivity_.foil_projection_separation_= (electronProjVertices.at(0) - alphaCandidateDetails.at(0).GetProjectedVertex()).Mag();
     sensitivity_.angle_between_tracks_= electronDirections.at(0).Angle(alphaDirections.at(0));
+    
+    double thisProjectionDistance=(alphaVertices.at(0)-alphaProjVertices.at(0)).Perp();
+    if (thisProjectionDistance > projectionDistanceXY)projectionDistanceXY=thisProjectionDistance;
 
   }
   
@@ -877,8 +700,17 @@ SensitivityModule::process(datatools::things& workItem) {
     {
       sensitivity_.same_side_of_foil_= ((sensitivity_.first_track_direction_x_ * sensitivity_.second_track_direction_x_) > 0); // X components both positive or both negative
     }
+  // Vertices
+  sensitivity_.vertices_on_foil_=verticesOnFoil;
+  
+  
+  sensitivity_.projection_distance_xy_=projectionDistanceXY;
+  sensitivity_.foil_alpha_count_=foilAlphaCount;
+  sensitivity_.electrons_from_foil_=electronsFromFoil;
+  sensitivity_.electron_track_lengths_=electronTrackLengths;
+  sensitivity_.electron_hit_counts_=electronHitCounts;
+  
  
-
   // Timing
   sensitivity_.calo_hit_time_separation_=TMath::Abs(timeDelay);
   sensitivity_.delayed_track_time_= &trajClDelayedTime;
@@ -889,12 +721,13 @@ SensitivityModule::process(datatools::things& workItem) {
 
   // Topology
 
+
   sensitivity_.topology_1engamma_=is1engamma;
   sensitivity_.topology_1e1gamma_=is1e1gamma;
   sensitivity_.topology_1e1alpha_=is1e1alpha;
   sensitivity_.topology_2e_=is2electron;
   sensitivity_.topology_1e_=is1electron;
-
+  
 
   // Calorimeter walls: fractions of energy in each and vector of booleans
   // to say whether there are any hits in that wall
@@ -908,14 +741,15 @@ SensitivityModule::process(datatools::things& workItem) {
   sensitivity_.calorimeter_hit_count_=caloHitCount;
   sensitivity_.small_cluster_count_=smallClusterCount;
   sensitivity_.cluster_count_=clusterCount;
-  sensitivity_.highest_gamma_energy_=highestGammaEnergy;
+  sensitivity_.highest_gamma_energy_=  highestGammaEnergy;
   sensitivity_.edgemost_vertex_=edgemostVertex;
-  sensitivity_.number_of_gammas_=numberOfGammas;
+  sensitivity_.number_of_gammas_=gammaCandidates.size();
   sensitivity_.track_count_=trackCount;
   sensitivity_.associated_track_count_=electronCandidates.size();
   sensitivity_.alpha_count_=alphaCandidates.size();
   sensitivity_.delayed_cluster_hit_count_=delayedClusterHitCount;
-
+  sensitivity_.delayed_hit_count_=delayedHitCount;
+  
   // Truth info, simulation only
   sensitivity_.true_highest_primary_energy_=higherTrueEnergy;
   sensitivity_.true_second_primary_energy_=lowerTrueEnergy;
@@ -927,7 +761,7 @@ SensitivityModule::process(datatools::things& workItem) {
   sensitivity_.true_vertex_z_=trueVertexZ;
   
   tree_->Fill();
-
+  
   // MUST return a status, see ref dpp::processing_status_flags_type
   return dpp::base_module::PROCESS_OK;
 }
@@ -1074,6 +908,55 @@ double SensitivityModule::ProbabilityFromChiSquared(double chiSquared)
   return result;
 }
 
+
+void SensitivityModule::ResetVars()
+{
+  sensitivity_.electron_track_lengths_.clear();
+  sensitivity_.electron_vertex_x_.clear();
+  sensitivity_.electron_vertex_y_.clear();
+  sensitivity_.electron_vertex_z_.clear();
+  sensitivity_.electron_proj_vertex_x_.clear();
+  sensitivity_.electron_proj_vertex_y_.clear();
+  sensitivity_.electron_proj_vertex_z_.clear();
+  sensitivity_.electron_dir_x_.clear();
+  sensitivity_.electron_dir_y_.clear();
+  sensitivity_.electron_dir_z_.clear();
+  sensitivity_.alpha_vertex_x_.clear();
+  sensitivity_.alpha_vertex_y_.clear();
+  sensitivity_.alpha_vertex_z_.clear();
+  sensitivity_.alpha_proj_vertex_x_.clear();
+  sensitivity_.alpha_proj_vertex_y_.clear();
+  sensitivity_.alpha_proj_vertex_z_.clear();
+  sensitivity_.alpha_dir_x_.clear();
+  sensitivity_.alpha_dir_y_.clear();
+  sensitivity_.alpha_dir_z_.clear();
+  
+  // And initialize the rest, what a drag
+  sensitivity_.first_proj_vertex_y_ = -9999;
+  sensitivity_.first_proj_vertex_z_ = -9999;
+  sensitivity_.first_vertex_x_ = -9999;
+  sensitivity_.first_vertex_y_ = -9999;
+  sensitivity_.first_vertex_z_ = -9999;
+  sensitivity_.first_track_direction_x_= -9999;
+  sensitivity_.first_track_direction_y_= -9999;
+  sensitivity_.first_track_direction_z_= -9999;
+  sensitivity_.second_proj_vertex_y_ = -9999;
+  sensitivity_.second_proj_vertex_z_ = -9999;
+  sensitivity_.second_vertex_x_ = -9999;
+  sensitivity_.second_vertex_y_ = -9999;
+  sensitivity_.second_vertex_z_ = -9999;
+  sensitivity_.second_track_direction_x_= -9999;
+  sensitivity_.second_track_direction_y_= -9999;
+  sensitivity_.second_track_direction_z_= -9999;
+  sensitivity_.vertex_separation_= -9999;
+  sensitivity_.foil_projection_separation_= -9999;
+  sensitivity_.angle_between_tracks_= -9999;
+  sensitivity_.alpha_track_length_=-9999;
+  sensitivity_.proj_track_length_alpha_=-9999;
+  sensitivity_.alpha_crosses_foil_=false;
+
+}
+
 //! [SensitivityModule::reset]
 void SensitivityModule::reset() {
   hfile_->cd();
@@ -1085,5 +968,6 @@ void SensitivityModule::reset() {
   delete hfile_;
   filename_output_ = "sensitivity.root";
   this->_set_initialized(false);
+
 }
 

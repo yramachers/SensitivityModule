@@ -143,14 +143,16 @@ typedef struct SensitivityEventStorage{
   int cluster_count_; // How many clusters with 3 or more hits?
   int track_count_; // How many reconstructed tracks?
   int associated_track_count_; // How many reconstructed tracks with an associated calorimeter?
-  int alpha_count_; // How many reconstructed alphas (ie delayed hits)?
+  int delayed_hit_count_; // Number of delated tracker hits, regardless of whether they are tracked as alphas
+  int alpha_count_; // How many reconstructed alphas (formed from one or more delayed hits)?
   int foil_alpha_count_; //How many reconstructed alphas (ie delayed hits) that we think have a vertex on the foil?
-  int delayed_cluster_hit_count_; //How many gieger hits in the alpha track
+  int delayed_cluster_hit_count_; //How many geiger hits in the alpha track
   int small_cluster_count_; // How many clusters with 2 hits?
   double highest_gamma_energy_; // Highest energy gamma
   double edgemost_vertex_; // Y position of the foil vertex nearest the side of the detector
   double alpha_track_length_; // Length of the alpha track in mm, different metrics for different numbers of delayed hits
   double proj_track_length_alpha_; // Length of the alpha track when projected back to the foil in mm
+  bool alpha_crosses_foil_; // True if the alpha track crosses the foil (bug in alpha finder)
   
   // Truth info - particle energies in MeV and primary vertex position
   double true_highest_primary_energy_;
@@ -199,6 +201,7 @@ class SensitivityModule : public dpp::base_module {
   int InsertAndGetPosition(double toInsert, std::vector<double> &vec, bool highestFirst);
   void PopulateWallVectors(std::vector<int> &calotypes, std::vector<bool> &mainVec, std::vector<bool> &xVec, std::vector<bool> &vetoVec);
   template <typename T>  void InsertAt(T toInsert, std::vector<T> &vec, int position);
+  void ResetVars();
 
 
   // Macro which automatically creates the interface needed

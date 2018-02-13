@@ -93,6 +93,8 @@ filename_out : string[1] = "my_filename.root"
 
 **reco.small_cluster_count** : Number of clusters with 2 hits
 
+**reco.delayed_hit_count** : Number of delayed tracker hits (delay time is configurable, but is typically set to somewhere around 10-20 microseconds. Delayed hits are typically reconstructed as alphas, if they meet certain criteria)
+
 
 ## Output tuple structure - reconstructed particles
 
@@ -202,6 +204,8 @@ metric for calculating the alpha track and alpha projected track lengths
 **reco.alpha_track_length** : Length in mm of the delayed track. This length is calculated in different ways depending on the number of hits in the delayed cluster. This is due to the way < 3 hit tracks are treated by alpha finder. More detail is provided in code comments.
 
 **reco.proj_track_length_alpha** : Length in mm of delayed track when it is projected back to the back to the electron projected foil vertex. Again this calculation is different for delayed tracks with 1,2 or >2 hits. See code for more detail.
+
+**reco.alpha_crosses_foil** : True if an alpha track has been reconstructed which crosses the foil. This is unlikely to happen in real life, but alpha finder allows this in its short track reconstruction. This is considered a bug in alpha finder that should be fixed - but until then, this variable allows a cut on those events.
 
 ## Output tuple structure - calorimeter positions
 

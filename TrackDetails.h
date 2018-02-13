@@ -25,6 +25,7 @@
 
 const double ELECTRON_MASS=0.5109989461; // From pdg, in MeV
 const double LIGHT_SPEED=299792458 * 1e-9 * 1000; // Millimeters per nanosecond
+const double FOIL_CELL_GAP=30.838; // From the foil to the first cell in mm
 
 class TrackDetails{
   TVector3 foilmostVertex_ ;
@@ -49,6 +50,7 @@ class TrackDetails{
   double trackLength_= 0;
   double trackLengthSigma_=0;
   double projectedLength_=0;
+  bool crossesFoil_=false;
   const geomtools::manager* geometry_manager_;
 
   
@@ -109,6 +111,7 @@ public:
   double GetFoilmostVertexZ();
   TVector3 GetFoilmostVertex();
   bool HasFoilVertex();
+  bool TrackCrossesFoil();
   
   // Direction at foilmost end
   double GetDirectionX();
@@ -131,5 +134,7 @@ public:
   
   // For gammas, we need an electron track to calculate an assumed length
   double GenerateGammaTrackLengths(TrackDetails *electronTrack);
+  // And the same for alpha projections in a 1e1alpha topology
+  bool GenerateAlphaProjections(TrackDetails *electronTrack);
 };
 
