@@ -220,6 +220,7 @@ SensitivityModule::process(datatools::things& workItem) {
   int clusterCount=0;
   int trackCount=0;
   int alphaCount=0;
+  int delayedHitCount=0;
   int foilAlphaCount=0;
   int associatedTrackCount=0;
   int smallClusterCount=0;
@@ -309,6 +310,7 @@ SensitivityModule::process(datatools::things& workItem) {
 
         }
       }
+    
       caloHitCount=nCalHitsOverLowLimit;
       if (nCalorimeterHits==2 && nCalHitsOverHighLimit>=1 && nCalHitsOverLowLimit==2)
         {
@@ -317,6 +319,16 @@ SensitivityModule::process(datatools::things& workItem) {
       if (nCalHitsOverHighLimit>=1 && nCalHitsOverLowLimit>=2)
       {
         passesTwoPlusCalos=true;
+      }
+      if (calData.has_calibrated_tracker_hits())
+      {
+        // Count the delayed tracker hits by looping all the tracker hits and checking if they are delayed
+        const snemo::datamodel::calibrated_data::tracker_hit_collection_type& trackerHits = calData.calibrated_tracker_hits();
+        for (snemo::datamodel::calibrated_data::tracker_hit_collection_type::const_iterator   iHit = trackerHits.begin(); iHit != trackerHits.end(); ++iHit) {
+          const snemo::datamodel::calibrated_tracker_hit& hit = iHit->get();
+          if (hit.is_delayed()) delayedHitCount++;
+        }
+
       }
     }
   catch (std::logic_error& e) {
@@ -736,6 +748,7 @@ SensitivityModule::process(datatools::things& workItem) {
   sensitivity_.associated_track_count_=electronCandidates.size();
   sensitivity_.alpha_count_=alphaCandidates.size();
   sensitivity_.delayed_cluster_hit_count_=delayedClusterHitCount;
+  sensitivity_.delayed_hit_count_=delayedHitCount;
   
   // Truth info, simulation only
   sensitivity_.true_highest_primary_energy_=higherTrueEnergy;
