@@ -6,7 +6,7 @@ project(SensitivityModule)
 find_package(Falaise REQUIRED)
 
 # Build a dynamic library from our sources
-add_library(SensitivityModule SHARED SensitivityModule.h SensitivityModule.cpp TrackDetails.h TrackDetails.cpp)
+add_library(SensitivityModule SHARED SensitivityModule.h SensitivityModule.cpp TrackDetails.h trackDetails.cpp)
 
 # Link it to the FalaiseModule library
 # This ensures the correct compiler flags, include paths
