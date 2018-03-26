@@ -898,13 +898,15 @@ double SensitivityModule::ProbabilityFromChiSquared(double chiSquared)
 {
   // To get probability from a chi squared value, integrate distribution to our chisq limit
   // We have one degree of freedom
-  TF1 *function_to_integrate = new TF1("Chi-square function", "pow(x,-0.5) * exp(-0.5 * x)", 0, chiSquared);
-  double * params = 0;
-  if (chiSquared>3000) chiSquared=3000; // The integral appears to not work properly at values bigger than this, eventually tending to 0 rather than root2pi and thus giving a misleading probability of 1 when it should be almost 0.
-  double integral=function_to_integrate->Integral(0,chiSquared,1e-6);
-  double result = (1. - 1./TMath::Sqrt(2.*TMath::Pi()) * integral);
+  // *** suspect memory leak on heap ***
+//   TF1 *function_to_integrate = new TF1("Chi-square function", "pow(x,-0.5) * exp(-0.5 * x)", 0, chiSquared);
+//   double * params = 0;
+//   if (chiSquared>3000) chiSquared=3000; // The integral appears to not work properly at values bigger than this, eventually tending to 0 rather than root2pi and thus giving a misleading probability of 1 when it should be almost 0.
+//   double integral=function_to_integrate->Integral(0,chiSquared,1e-6);
+//   double result = (1. - 1./TMath::Sqrt(2.*TMath::Pi()) * integral);
   // Fix rounding errors where result can be a tiny negative number
-  if (result < 0 ) return 0 ;
+//   if (result < 0 ) return 0 ;
+  double result = TMath::Prob(chiSquared, 1);
   return result;
 }
 
